@@ -78,4 +78,50 @@ class Uploader:
             results.append({"provider": "Google Cloud Storage", "bucket": bucket_name, "path": key, "url": blob.public_url})
         return results
 
+    @staticmethod
+    def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
+        from google.cloud import storage
+        from google.oauth2 import service_account
+
+        client: storage.Client
+        if api_key and api_key.strip().startswith("{"):
+            info = json.loads(api_key)
+            creds = service_account.Credentials.from_service_account_info(info)
+            client = storage.Client(credentials=creds, project=info.get("project_id"))
+        elif api_key and api_key.strip().endswith(".json"):
+            creds = service_account.Credentials.from_service_account_file(api_key.strip())
+            client = storage.Client(credentials=creds)
+        else:
+            client = storage.Client()
+
+        bucket_name, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, key_or_filename)
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(key)
+        return blob.download_as_bytes()
+
+    @staticmethod
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+        from google.cloud import storage
+        from google.oauth2 import service_account
+
+        client: storage.Client
+        if api_key and api_key.strip().startswith("{"):
+            info = json.loads(api_key)
+            creds = service_account.Credentials.from_service_account_info(info)
+            client = storage.Client(credentials=creds, project=info.get("project_id"))
+        elif api_key and api_key.strip().endswith(".json"):
+            creds = service_account.Credentials.from_service_account_file(api_key.strip())
+            client = storage.Client(credentials=creds)
+        else:
+            client = storage.Client()
+
+        bucket_name, _ = _parse_bucket_and_key(bucket_link, cloud_folder_path, "dummy")
+        bucket = client.bucket(bucket_name)
+        results: list[Dict[str, Any]] = []
+        for name in keys:
+            _, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, name)
+            blob = bucket.blob(key)
+            results.append({"filename": name, "content": blob.download_as_bytes()})
+        return results
+
 

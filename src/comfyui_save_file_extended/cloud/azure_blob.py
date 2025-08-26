@@ -99,4 +99,46 @@ class Uploader:
 
         return results
 
+    @staticmethod
+    def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
+        from azure.storage.blob import BlobServiceClient
+
+        account_url, container, blob_name = _parse_container_and_blob(bucket_link, cloud_folder_path, key_or_filename)
+
+        if "DefaultEndpointsProtocol=" in bucket_link:
+            service_client = BlobServiceClient.from_connection_string(bucket_link)
+        elif api_key and api_key.strip().startswith("DefaultEndpointsProtocol="):
+            service_client = BlobServiceClient.from_connection_string(api_key.strip())
+        else:
+            if not account_url:
+                raise ValueError("Azure Blob requires an account URL or connection string")
+            service_client = BlobServiceClient(account_url=account_url, credential=api_key if api_key else None)
+
+        blob_client = service_client.get_blob_client(container=container, blob=blob_name)
+        downloader = blob_client.download_blob()
+        return downloader.readall()
+
+    @staticmethod
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+        from azure.storage.blob import BlobServiceClient
+
+        account_url, container, _ = _parse_container_and_blob(bucket_link, cloud_folder_path, "dummy")
+
+        if "DefaultEndpointsProtocol=" in bucket_link:
+            service_client = BlobServiceClient.from_connection_string(bucket_link)
+        elif api_key and api_key.strip().startswith("DefaultEndpointsProtocol="):
+            service_client = BlobServiceClient.from_connection_string(api_key.strip())
+        else:
+            if not account_url:
+                raise ValueError("Azure Blob requires an account URL or connection string")
+            service_client = BlobServiceClient(account_url=account_url, credential=api_key if api_key else None)
+
+        results: list[Dict[str, Any]] = []
+        for name in keys:
+            _, _, blob_name = _parse_container_and_blob(bucket_link, cloud_folder_path, name)
+            blob_client = service_client.get_blob_client(container=container, blob=blob_name)
+            downloader = blob_client.download_blob()
+            results.append({"filename": name, "content": downloader.readall()})
+        return results
+
 

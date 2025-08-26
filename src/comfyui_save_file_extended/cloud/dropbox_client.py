@@ -76,4 +76,31 @@ class Uploader:
             results.append({"provider": "Dropbox", "bucket": "", "path": path, "url": None})
         return results
 
+    @staticmethod
+    def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
+        import dropbox
+
+        if not api_key:
+            raise ValueError("Dropbox api_key (access token) is required")
+
+        dbx = dropbox.Dropbox(api_key.strip())
+        path = _resolve_path(bucket_link, cloud_folder_path, key_or_filename)
+        metadata, resp = dbx.files_download(path)
+        return resp.content
+
+    @staticmethod
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+        import dropbox
+
+        if not api_key:
+            raise ValueError("Dropbox api_key (access token) is required")
+
+        dbx = dropbox.Dropbox(api_key.strip())
+        results: list[Dict[str, Any]] = []
+        for name in keys:
+            path = _resolve_path(bucket_link, cloud_folder_path, name)
+            metadata, resp = dbx.files_download(path)
+            results.append({"filename": name, "content": resp.content})
+        return results
+
 

@@ -160,3 +160,66 @@ class Uploader:
 
         return results
 
+    @staticmethod
+    def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
+        import requests
+
+        access_token = _get_access_token(api_key)
+        parsed = urlparse(bucket_link)
+        base_path = parsed.path if parsed.scheme != "drive" else ""
+        folder_id = None
+        if parsed.scheme == "drive":
+            segs = parsed.netloc.split("/") if parsed.netloc else []
+            folder_id = segs[0] if segs else None
+            if parsed.path:
+                base_path = parsed.path
+        path_prefix = "/".join([p.strip("/") for p in [base_path, cloud_folder_path] if p and p.strip("/")])
+
+        if folder_id is None:
+            parent_id = _resolve_parent_id_from_path(access_token, path_prefix)
+        else:
+            parent_id = _resolve_parent_id_from_path(access_token, path_prefix) if path_prefix else folder_id
+
+        headers = {"Authorization": f"Bearer {access_token}"}
+        q = f"name='{key_or_filename}' and '{parent_id}' in parents and trashed=false"
+        search = requests.get("https://www.googleapis.com/drive/v3/files", params={"q": q, "fields": "files(id,name)"}, headers=headers)
+        search.raise_for_status()
+        files = search.json().get("files", [])
+        if not files:
+            raise FileNotFoundError(key_or_filename)
+        file_id = files[0]["id"]
+        resp = requests.get(f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media", headers=headers)
+        resp.raise_for_status()
+        return resp.content
+
+    @staticmethod
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+        import requests
+
+        access_token = _get_access_token(api_key)
+        parsed = urlparse(bucket_link)
+        base_path = parsed.path if parsed.scheme != "drive" else ""
+        folder_id = None
+        if parsed.scheme == "drive":
+            segs = parsed.netloc.split("/") if parsed.netloc else []
+            folder_id = segs[0] if segs else None
+            if parsed.path:
+                base_path = parsed.path
+        path_prefix = "/".join([p.strip("/") for p in [base_path, cloud_folder_path] if p and p.strip("/")])
+        parent_id = _resolve_parent_id_from_path(access_token, path_prefix) if folder_id is None or path_prefix else folder_id
+
+        headers = {"Authorization": f"Bearer {access_token}"}
+        results: list[Dict[str, Any]] = []
+        for name in keys:
+            q = f"name='{name}' and '{parent_id}' in parents and trashed=false"
+            search = requests.get("https://www.googleapis.com/drive/v3/files", params={"q": q, "fields": "files(id,name)"}, headers=headers)
+            search.raise_for_status()
+            files = search.json().get("files", [])
+            if not files:
+                raise FileNotFoundError(name)
+            file_id = files[0]["id"]
+            resp = requests.get(f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media", headers=headers)
+            resp.raise_for_status()
+            results.append({"filename": name, "content": resp.content})
+        return results
+

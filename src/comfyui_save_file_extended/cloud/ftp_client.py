@@ -81,4 +81,59 @@ class Uploader:
 
         return results
 
+    @staticmethod
+    def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
+        parsed = urlparse(bucket_link)
+        if parsed.scheme != "ftp":
+            raise ValueError("FTP bucket_link must start with ftp://user:pass@host[:port]/basepath")
+
+        host = parsed.hostname
+        port = parsed.port or 21
+        user = parsed.username or "anonymous"
+        password = parsed.password or "anonymous@"
+
+        base_path = parsed.path or "/"
+        parts = [p for p in [base_path, cloud_folder_path] if p]
+        prefix = "/".join([p.strip("/") for p in parts if p and p.strip("/")])
+        remote_path = f"/{prefix + '/' if prefix else ''}{key_or_filename}"
+
+        bio = io.BytesIO()
+        with FTP() as ftp:
+            ftp.connect(host, port)
+            ftp.login(user=user, passwd=password)
+            # Change to directory
+            dirs = remote_path.strip("/").split("/")[:-1]
+            for d in dirs:
+                ftp.cwd(d)
+            ftp.retrbinary(f"RETR {key_or_filename}", bio.write)
+        return bio.getvalue()
+
+    @staticmethod
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+        parsed = urlparse(bucket_link)
+        if parsed.scheme != "ftp":
+            raise ValueError("FTP bucket_link must start with ftp://user:pass@host[:port]/basepath")
+
+        host = parsed.hostname
+        port = parsed.port or 21
+        user = parsed.username or "anonymous"
+        password = parsed.password or "anonymous@"
+
+        base_path = parsed.path or "/"
+        parts = [p for p in [base_path, cloud_folder_path] if p]
+        prefix = "/".join([p.strip("/") for p in parts if p and p.strip("/")])
+
+        results: list[Dict[str, Any]] = []
+        with FTP() as ftp:
+            ftp.connect(host, port)
+            ftp.login(user=user, passwd=password)
+            if prefix:
+                for d in prefix.strip("/").split("/"):
+                    ftp.cwd(d)
+            for name in keys:
+                bio = io.BytesIO()
+                ftp.retrbinary(f"RETR {name}", bio.write)
+                results.append({"filename": name, "content": bio.getvalue()})
+        return results
+
 

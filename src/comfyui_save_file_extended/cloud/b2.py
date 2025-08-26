@@ -73,4 +73,41 @@ class Uploader:
 
         return results
 
+    @staticmethod
+    def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
+        from b2sdk.v2 import B2Api, InMemoryAccountInfo
+        import io
+
+        key_id, app_key = _parse_creds(api_key)
+        bucket_name, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, key_or_filename)
+
+        info = InMemoryAccountInfo()
+        b2_api = B2Api(info)
+        b2_api.authorize_account("production", key_id, app_key)
+        bucket = b2_api.get_bucket_by_name(bucket_name)
+        bio = io.BytesIO()
+        bucket.download_file_by_name(key).save(bio)
+        return bio.getvalue()
+
+    @staticmethod
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+        from b2sdk.v2 import B2Api, InMemoryAccountInfo
+        import io
+
+        key_id, app_key = _parse_creds(api_key)
+        bucket_name, _ = _parse_bucket_and_key(bucket_link, cloud_folder_path, "dummy")
+
+        info = InMemoryAccountInfo()
+        b2_api = B2Api(info)
+        b2_api.authorize_account("production", key_id, app_key)
+        bucket = b2_api.get_bucket_by_name(bucket_name)
+
+        results: list[Dict[str, Any]] = []
+        for name in keys:
+            _, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, name)
+            bio = io.BytesIO()
+            bucket.download_file_by_name(key).save(bio)
+            results.append({"filename": name, "content": bio.getvalue()})
+        return results
+
 

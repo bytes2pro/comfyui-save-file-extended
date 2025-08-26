@@ -138,4 +138,31 @@ class Uploader:
             results.append({"provider": "OneDrive", "bucket": "", "path": f"/{path_prefix}/{filename}" if path_prefix else f"/{filename}", "url": data.get("webUrl")})
         return results
 
+    @staticmethod
+    def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
+        import requests
+
+        access_token = _get_access_token(api_key)
+        path = _build_path(bucket_link, cloud_folder_path, key_or_filename)
+        url = f"https://graph.microsoft.com/v1.0/me/drive/root:{path}:/content"
+        headers = {"Authorization": f"Bearer {access_token}"}
+        resp = requests.get(url, headers=headers)
+        resp.raise_for_status()
+        return resp.content
+
+    @staticmethod
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+        import requests
+
+        access_token = _get_access_token(api_key)
+        headers = {"Authorization": f"Bearer {access_token}"}
+        results: list[Dict[str, Any]] = []
+        for name in keys:
+            path = _build_path(bucket_link, cloud_folder_path, name)
+            url = f"https://graph.microsoft.com/v1.0/me/drive/root:{path}:/content"
+            resp = requests.get(url, headers=headers)
+            resp.raise_for_status()
+            results.append({"filename": name, "content": resp.content})
+        return results
+
 
