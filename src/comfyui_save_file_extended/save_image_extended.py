@@ -139,6 +139,30 @@ class SaveImageExtended:
         prompt=None, 
         extra_pnginfo=None
     ):
+        def _toast(kind: str, title: str, message: str):
+            # Try several common ComfyUI notification channels; ignore failures
+            try:
+                PromptServer.instance.send_sync(
+                    "display_notification",
+                    {"kind": kind, "title": title, "message": message},
+                )
+            except Exception:
+                pass
+            try:
+                PromptServer.instance.send_sync(
+                    "notification",
+                    {"kind": kind, "title": title, "message": message},
+                )
+            except Exception:
+                pass
+            try:
+                PromptServer.instance.send_sync(
+                    "display_component",
+                    {"component": "Toast", "props": {"kind": kind, "title": title, "message": message}},
+                )
+            except Exception:
+                pass
+
         filename_prefix += self.prefix_append
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])
         # Resolve local save directory and UI subfolder
@@ -196,6 +220,7 @@ class SaveImageExtended:
                     })
                 except Exception as e:
                     print(f"[SaveImageExtended] Failed to save locally: {e}")
+                    _toast("error", "Local save failed", str(e))
                 else:
                     try:
                         PromptServer.instance.send_sync(
@@ -260,6 +285,7 @@ class SaveImageExtended:
                     )
                 except Exception:
                     pass
+                _toast("error", "Cloud upload failed", str(e))
             else:
                 try:
                     PromptServer.instance.send_sync(
@@ -268,5 +294,12 @@ class SaveImageExtended:
                     )
                 except Exception:
                     pass
+                # Success toast
+                msg = f"Saved {len(results)} locally" if save_to_local else None
+                if save_to_cloud:
+                    cloud_msg = f"Uploaded {len(cloud_results)} to {cloud_provider}"
+                    msg = f"{msg} and {cloud_msg}" if msg else cloud_msg
+                if msg:
+                    _toast("success", "Images saved", msg)
 
         return { "ui": { "images": results }, "cloud": cloud_results }

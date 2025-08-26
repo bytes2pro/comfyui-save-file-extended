@@ -3,7 +3,7 @@ requires = ["setuptools>=70.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "comfyui_save_file_extended"
+name = "comfyui-save-file-extended"
 version = "0.0.1"
 description = "A collection of custom nodes for ComfyUI that offers an extension to the existing Save and Preview Image/Video nodes allowing directly adding and previewing the files from your preferred cloud storage providers (S3/DropBox/Google Drive/...)"
 authors = [
@@ -15,9 +15,15 @@ license = {text = "MIT license"}
 requires-python = ">=3.10"
 classifiers = []
 dependencies = [
-
+    "boto3>=1.26.0",
+    "google-cloud-storage>=3.3.0",
+    "azure-storage-blob>=12.19.0",
+    "b2sdk>=2.10.0",
+    "dropbox>=12.0.2",
+    "requests>=2.31.0",
+    "supabase>=2.4.0",
+    "uploadthing.py>=0.3.3",
 ]
-
 
 
 [project.optional-dependencies]
@@ -31,9 +37,9 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/RUiNtheExtinct/comfyui_save_file_extended"
-BugTracker = "https://github.com/RUiNtheExtinct/comfyui_save_file_extended/issues"
-Documentation = "https://github.com/RUiNtheExtinct/comfyui_save_file_extended/wiki"
+Repository = "https://github.com/RUiNtheExtinct/comfyui-save-file-extended"
+BugTracker = "https://github.com/RUiNtheExtinct/comfyui-save-file-extended/issues"
+Documentation = "https://github.com/RUiNtheExtinct/comfyui-save-file-extended/wiki"
 
 
 [tool.comfy]
@@ -41,7 +47,7 @@ PublisherId = "RUiNtheExtinct"
 DisplayName = "comfyui-save-file-extended"
 Icon = ""
 Tags = []
-Repository = "https://github.com/RUiNtheExtinct/comfyui_save_file_extended"
+Repository = "https://github.com/RUiNtheExtinct/comfyui-save-file-extended"
 
 includes = []
 
@@ -65,8 +71,7 @@ warn_no_return = true
 [[tool.mypy.overrides]]
 # Don't require test functions to include types
 module = "tests.*"
-allow_untyped_defs = true
-disable_error_code = "attr-defined"
+disable_error_code = ["attr-defined", "no-untyped-def"]
 
 [tool.ruff]
 # extend-exclude = ["static", "ci/templates"]

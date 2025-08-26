@@ -128,6 +128,30 @@ class LoadImageExtended:
         return output_image, output_mask
 
     def load_images_extended(self, load_from_cloud: bool, file_paths: str, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key="", local_file=None):
+        def _toast(kind: str, title: str, message: str):
+            # Try several common ComfyUI notification channels; ignore failures
+            try:
+                PromptServer.instance.send_sync(
+                    "display_notification",
+                    {"kind": kind, "title": title, "message": message},
+                )
+            except Exception:
+                pass
+            try:
+                PromptServer.instance.send_sync(
+                    "notification",
+                    {"kind": kind, "title": title, "message": message},
+                )
+            except Exception:
+                pass
+            try:
+                PromptServer.instance.send_sync(
+                    "display_component",
+                    {"component": "Toast", "props": {"kind": kind, "title": title, "message": message}},
+                )
+            except Exception:
+                pass
+
         paths = [p.strip() for p in file_paths.splitlines() if p.strip()]
         # If not using cloud and a local file is selected, use it when file_paths is empty
         if not load_from_cloud and not paths and local_file:
@@ -235,18 +259,22 @@ class LoadImageExtended:
             )
         except Exception:
             pass
+        # Success toast
+        if len(tensors):
+            src = cloud_provider if load_from_cloud else "local"
+            _toast("success", "Images loaded", f"Loaded {len(tensors)} image(s) from {src}")
         return (out_img, out_mask)
 
     @classmethod
-    def IS_CHANGED(s, load_from_cloud, file_paths, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key=""):
+    def IS_CHANGED(s, load_from_cloud, file_paths, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key="", local_file=None):
         # Hash input arguments to trigger reload when they change
         m = hashlib.sha256()
-        for part in [str(load_from_cloud), str(file_paths), str(cloud_provider), str(bucket_link), str(cloud_folder_path)]:
+        for part in [str(load_from_cloud), str(file_paths), str(cloud_provider), str(bucket_link), str(cloud_folder_path), str(local_file)]:
             m.update(part.encode("utf-8"))
         return m.digest().hex()
 
     @classmethod
-    def VALIDATE_INPUTS(s, load_from_cloud, file_paths, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key=""):
+    def VALIDATE_INPUTS(s, load_from_cloud, file_paths, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key="", local_file=None):
         # file_paths can be empty if a local_file is selected at runtime; validation here focuses on cloud fields
         if (not file_paths or not file_paths.strip()) and load_from_cloud:
             return "Provide one or more file paths (one per line)."
