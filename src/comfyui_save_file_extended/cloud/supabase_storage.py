@@ -6,6 +6,7 @@ from typing import Any, Dict, Tuple
 from urllib.parse import urlparse
 
 from supabase import create_client
+import mimetypes
 
 from ._logging import log_exceptions
 
@@ -76,8 +77,9 @@ class Uploader:
         client = Uploader._get_client(api_key)
         bucket, path = _parse_bucket_and_path(bucket_link, cloud_folder_path, filename)
         role = _jwt_role(_parse_supabase_creds(api_key)[1])
+        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
         try:
-            client.storage.from_(bucket).upload(path, image_bytes, file_options={"content-type": "image/png", "upsert": "true"})
+            client.storage.from_(bucket).upload(path, image_bytes, file_options={"content-type": content_type, "upsert": "true"})
         except StorageApiError as e:  # type: ignore
             msg = str(e)
             if "row-level security" in msg.lower() and role != "service_role":
@@ -106,7 +108,8 @@ class Uploader:
             body = item["content"]
             _, path = _parse_bucket_and_path(bucket_link, cloud_folder_path, filename)
             try:
-                client.storage.from_(bucket).upload(path, body, file_options={"content-type": "image/png", "upsert": "true"})
+                content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+                client.storage.from_(bucket).upload(path, body, file_options={"content-type": content_type, "upsert": "true"})
             except StorageApiError as e:  # type: ignore
                 msg = str(e)
                 if "row-level security" in msg.lower() and role != "service_role":

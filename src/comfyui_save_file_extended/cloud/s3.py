@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
 
 import boto3
+import mimetypes
 
 from ._logging import log_exceptions
 
@@ -82,7 +83,8 @@ class Uploader:
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
         bucket, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, filename)
         s3 = Uploader._create_client(api_key)
-        s3.put_object(Bucket=bucket, Key=key, Body=image_bytes, ContentType="image/png")
+        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        s3.put_object(Bucket=bucket, Key=key, Body=image_bytes, ContentType=content_type)
 
         url = f"https://{bucket}.s3.amazonaws.com/{key}"
         return {
@@ -102,6 +104,7 @@ class Uploader:
             filename = item["filename"]
             body = item["content"]
             bucket, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, filename)
+            content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
             if byte_callback:
                 sent = {"n": 0}
                 def _cb(n):
@@ -110,9 +113,9 @@ class Uploader:
                         byte_callback({"delta": n, "sent": sent["n"], "total": len(body), "index": idx, "filename": filename, "path": key})
                     except Exception:
                         pass
-                s3.upload_fileobj(io.BytesIO(body), bucket, key, Callback=_cb, ExtraArgs={"ContentType": "image/png"})
+                s3.upload_fileobj(io.BytesIO(body), bucket, key, Callback=_cb, ExtraArgs={"ContentType": content_type})
             else:
-                s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType="image/png")
+                s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType=content_type)
             url = f"https://{bucket}.s3.amazonaws.com/{key}"
             results.append({"provider": "AWS S3", "bucket": bucket, "path": key, "url": url})
             if progress_callback:

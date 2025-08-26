@@ -5,6 +5,7 @@ from typing import Any, Dict, Tuple
 from urllib.parse import urlparse
 
 from azure.storage.blob import BlobServiceClient, ContentSettings
+import mimetypes
 
 from ._logging import log_exceptions
 
@@ -62,7 +63,8 @@ class Uploader:
             pass
 
         blob_client = container_client.get_blob_client(blob_name)
-        content_settings = ContentSettings(content_type="image/png")
+        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        content_settings = ContentSettings(content_type=content_type)
         blob_client.upload_blob(image_bytes, overwrite=True, content_settings=content_settings)
 
         url = f"{service_client.url}/{container}/{blob_name}"
@@ -92,7 +94,8 @@ class Uploader:
             body = item["content"]
             _, _, blob_name = _parse_container_and_blob(bucket_link, cloud_folder_path, filename)
             blob_client = container_client.get_blob_client(blob_name)
-            content_settings = ContentSettings(content_type="image/png")
+            content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+            content_settings = ContentSettings(content_type=content_type)
             if byte_callback and len(body) > 8 * 1024 * 1024:
                 # staged blocks
                 block_ids = []

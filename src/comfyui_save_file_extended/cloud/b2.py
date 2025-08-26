@@ -5,6 +5,7 @@ from typing import Any, Dict, Tuple
 from urllib.parse import urlparse
 
 from b2sdk.v2 import B2Api, InMemoryAccountInfo
+import mimetypes
 
 from ._logging import log_exceptions
 
@@ -50,7 +51,8 @@ class Uploader:
         bucket_name, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, filename)
         b2_api = Uploader._create_api(api_key)
         bucket = b2_api.get_bucket_by_name(bucket_name)
-        file_info = bucket.upload_bytes(image_bytes, key, content_type="image/png")
+        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        file_info = bucket.upload_bytes(image_bytes, key, content_type=content_type)
 
         download_url = f"https://f002.backblazeb2.com/file/{bucket_name}/{key}"
         return {
@@ -73,7 +75,8 @@ class Uploader:
             filename = item["filename"]
             body = item["content"]
             _, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, filename)
-            file_info = bucket.upload_bytes(body, key, content_type="image/png")
+            content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+            file_info = bucket.upload_bytes(body, key, content_type=content_type)
             if byte_callback:
                 try:
                     byte_callback({"delta": len(body), "sent": len(body), "total": len(body), "index": idx, "filename": filename, "path": key})

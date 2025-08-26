@@ -5,6 +5,7 @@ from typing import Any, Dict, Tuple
 from urllib.parse import parse_qs, urlparse
 
 import requests
+import mimetypes
 
 from ._logging import log_exceptions
 
@@ -139,9 +140,10 @@ class Uploader:
             parent_id = _resolve_parent_id_from_path(access_token, path_prefix, base_parent_id=folder_id) if path_prefix else folder_id
 
         metadata = {"name": filename, "parents": [parent_id]}
+        content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
         files = {
             'metadata': ('metadata', json.dumps(metadata), 'application/json; charset=UTF-8'),
-            'file': ('file', image_bytes, 'image/png')
+            'file': ('file', image_bytes, content_type)
         }
         resp = requests.post('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', headers=headers, files=files)
         resp.raise_for_status()
@@ -177,9 +179,10 @@ class Uploader:
             filename = item["filename"]
             body = item["content"]
             if byte_callback and len(body) > 5 * 1024 * 1024:
+                content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
                 init = requests.post(
                     'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
-                    headers={**headers, 'X-Upload-Content-Type': 'image/png', 'Content-Type': 'application/json; charset=UTF-8'},
+                    headers={**headers, 'X-Upload-Content-Type': content_type, 'Content-Type': 'application/json; charset=UTF-8'},
                     data=json.dumps({"name": filename, "parents": [parent_id]})
                 )
                 init.raise_for_status()
@@ -190,7 +193,7 @@ class Uploader:
                 while sent < len(body):
                     chunk = body[sent:sent+CHUNK]
                     end = sent + len(chunk) - 1
-                    put = requests.put(session_uri, headers={**headers, 'Content-Type': 'image/png', 'Content-Length': str(len(chunk)), 'Content-Range': f'bytes {sent}-{end}/{len(body)}'}, data=chunk)
+                    put = requests.put(session_uri, headers={**headers, 'Content-Type': content_type, 'Content-Length': str(len(chunk)), 'Content-Range': f'bytes {sent}-{end}/{len(body)}'}, data=chunk)
                     if put.status_code not in (200, 201, 308):
                         put.raise_for_status()
                     sent += len(chunk)
@@ -202,9 +205,10 @@ class Uploader:
                 data = last_resp.json() if (last_resp is not None and last_resp.content) else {"id": None}
             else:
                 metadata = {"name": filename, "parents": [parent_id]}
+                content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
                 files = {
                     'metadata': ('metadata', json.dumps(metadata), 'application/json; charset=UTF-8'),
-                    'file': ('file', body, 'image/png')
+                    'file': ('file', body, content_type)
                 }
                 resp = requests.post('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', headers=headers, files=files)
                 resp.raise_for_status()

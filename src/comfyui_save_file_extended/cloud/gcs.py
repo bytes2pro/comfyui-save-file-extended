@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from google.cloud import storage
 from google.oauth2 import service_account
 from ._logging import log_exceptions
+import mimetypes
 
 
 @log_exceptions
@@ -48,7 +49,8 @@ class Uploader:
         bucket_name, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, filename)
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(key)
-        blob.upload_from_string(image_bytes, content_type="image/png")
+        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        blob.upload_from_string(image_bytes, content_type=content_type)
 
         url = blob.public_url
         return {
@@ -87,7 +89,8 @@ class Uploader:
                         except Exception:
                             pass
             else:
-                blob.upload_from_string(body, content_type="image/png")
+                content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+                blob.upload_from_string(body, content_type=content_type)
             results.append({"provider": "Google Cloud Storage", "bucket": bucket_name, "path": key, "url": blob.public_url})
             if progress_callback:
                 try:

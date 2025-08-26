@@ -11,6 +11,9 @@ import torch
 from comfy.cli_args import args
 from comfy.comfy_types import IO, ComfyNodeABC, FileLocator
 from comfy_api.latest import Input, Types
+from server import PromptServer
+
+from ..cloud import get_uploader
 
 
 class SaveWEBMExtended:
@@ -95,6 +98,27 @@ class SaveVideoExtended(ComfyNodeABC):
                 "format": (Types.VideoContainer.as_input(), {"default": "auto", "tooltip": "The format to save the video as."}),
                 "codec": (Types.VideoCodec.as_input(), {"default": "auto", "tooltip": "The codec to use for the video."}),
             },
+            "optional": {
+                "save_to_cloud": ("BOOLEAN", {"default": False, "socketless": True, "label_on": "Enabled", "label_off": "Disabled"}),
+                "cloud_provider": ([
+                    "AWS S3",
+                    "Google Cloud Storage",
+                    "Azure Blob Storage",
+                    "Backblaze B2",
+                    "Google Drive",
+                    "Dropbox",
+                    "OneDrive",
+                    "FTP",
+                    "Supabase Storage",
+                    "UploadThing",
+                    "S3-Compatible"
+                ], {"default": "AWS S3"}),
+                "bucket_link": ("STRING", {"default": ""}),
+                "cloud_folder_path": ("STRING", {"default": "outputs"}),
+                "cloud_api_key": ("STRING", {"default": ""}),
+                "save_to_local": ("BOOLEAN", {"default": True, "socketless": True, "label_on": "Enabled", "label_off": "Disabled"}),
+                "local_folder_path": ("STRING", {"default": ""}),
+            },
             "hidden": {
                 "prompt": "PROMPT",
                 "extra_pnginfo": "EXTRA_PNGINFO"
@@ -109,7 +133,15 @@ class SaveVideoExtended(ComfyNodeABC):
     CATEGORY = "image/video"
     DESCRIPTION = "Saves the input images to your ComfyUI output directory."
 
-    def save_video(self, video: Input.Video, filename_prefix, format, codec, prompt=None, extra_pnginfo=None):
+    def save_video(self, video: Input.Video, filename_prefix, format, codec, save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
+        def _notify(kind: str, payload: dict):
+            try:
+                PromptServer.instance.send_sync(
+                    "comfyui.savevideoextended.status",
+                    {"phase": kind, **payload}
+                )
+            except Exception:
+                pass
         filename_prefix += self.prefix_append
         width, height = video.get_dimensions()
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(
@@ -118,6 +150,17 @@ class SaveVideoExtended(ComfyNodeABC):
             width,
             height
         )
+        # Resolve local save directory and UI subfolder
+        local_save_dir = full_output_folder
+        ui_subfolder = subfolder
+        if save_to_local:
+            local_save_dir = os.path.join(full_output_folder, local_folder_path or "")
+            try:
+                os.makedirs(local_save_dir, exist_ok=True)
+            except Exception:
+                local_save_dir = full_output_folder
+            ui_subfolder = os.path.join(subfolder, local_folder_path) if subfolder else local_folder_path
+
         results: list[FileLocator] = list()
         saved_metadata = None
         if not args.disable_metadata:
@@ -129,18 +172,45 @@ class SaveVideoExtended(ComfyNodeABC):
             if len(metadata) > 0:
                 saved_metadata = metadata
         file = f"{filename}_{counter:05}_.{Types.VideoContainer.get_extension(format)}"
+        out_path = os.path.join(local_save_dir, file)
+
+        _notify("start", {"total": 1, "provider": cloud_provider if save_to_cloud else None})
+        # Always render to disk first
         video.save_to(
-            os.path.join(full_output_folder, file),
+            out_path,
             format=format,
             codec=codec,
             metadata=saved_metadata
         )
 
-        results.append({
-            "filename": file,
-            "subfolder": subfolder,
-            "type": self.type
-        })
-        counter += 1
+        cloud_results = []
+        if save_to_local:
+            results.append({
+                "filename": file,
+                "subfolder": ui_subfolder,
+                "type": self.type
+            })
+            _notify("progress", {"where": "local", "current": 1, "total": 1, "filename": file})
 
-        return { "ui": { "images": results, "animated": (True,) } }
+        if save_to_cloud:
+            try:
+                with open(out_path, "rb") as f:
+                    data = f.read()
+                Uploader = get_uploader(cloud_provider)
+                cloud_results = Uploader.upload_many([{"filename": file, "content": data}], bucket_link, cloud_folder_path, cloud_api_key)
+                _notify("progress", {"where": "cloud", "current": 1, "total": 1, "filename": file, "provider": cloud_provider})
+            except Exception as e:
+                _notify("error", {"message": str(e)})
+            else:
+                _notify("complete", {"count_local": len(results), "count_cloud": len(cloud_results), "provider": cloud_provider})
+        else:
+            _notify("complete", {"count_local": len(results), "count_cloud": 0, "provider": None})
+
+        # If local is disabled, remove the temp file to keep workspace clean
+        if not save_to_local:
+            try:
+                os.remove(out_path)
+            except Exception:
+                pass
+
+        return { "ui": { "images": results, "animated": (True,) }, "cloud": cloud_results }

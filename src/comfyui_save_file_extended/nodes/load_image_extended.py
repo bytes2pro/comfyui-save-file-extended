@@ -17,7 +17,7 @@ from inspect import cleandoc
 import folder_paths
 from server import PromptServer
 
-from .cloud import get_uploader
+from ..cloud import get_uploader
 
 
 class LoadImageExtended:

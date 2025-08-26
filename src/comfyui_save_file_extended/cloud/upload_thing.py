@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from ._logging import log_exceptions
+import mimetypes
 
 try:  # Unofficial Python SDK for UploadThing
     # https://pypi.org/project/uploadthing.py/
@@ -112,7 +113,8 @@ class Uploader:
                 res = await client.upload_files([f])  # type: ignore[attr-defined]
             except TypeError:
                 # Fallback to bytes payload if the SDK expects dicts
-                res = await client.upload_files([{"name": name, "data": image_bytes, "content_type": "image/png"}])  # type: ignore[list-item]
+                content_type = mimetypes.guess_type(name)[0] or 'application/octet-stream'
+                res = await client.upload_files([{"name": name, "data": image_bytes, "content_type": content_type}])  # type: ignore[list-item]
             item = res[0] if isinstance(res, list) else res
             # Expected shape from SDK: { key: str, url: str, ... }
             key = item.get("key") if isinstance(item, dict) else None
@@ -162,7 +164,9 @@ class Uploader:
             except TypeError:
                 # Fallback to one-by-one
                 for idx, it in enumerate(items):
-                    single = await client.upload_files([{"name": _name_with_prefix(it["filename"], cloud_folder_path), "data": it["content"], "content_type": "image/png"}])  # type: ignore[list-item]
+                    name = _name_with_prefix(it["filename"], cloud_folder_path)
+                    content_type = mimetypes.guess_type(name)[0] or 'application/octet-stream'
+                    single = await client.upload_files([{"name": name, "data": it["content"], "content_type": content_type}])  # type: ignore[list-item]
                     item = single[0] if isinstance(single, list) else single
                     key = item.get("key") if isinstance(item, dict) else None
                     url = item.get("url") if isinstance(item, dict) else None

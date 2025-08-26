@@ -18,7 +18,7 @@ import folder_paths
 from comfy.cli_args import args
 from server import PromptServer
 
-from .cloud import get_uploader
+from ..cloud import get_uploader
 
 
 class SaveImageExtended:
