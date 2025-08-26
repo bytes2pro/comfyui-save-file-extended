@@ -4,6 +4,7 @@ import io
 import json
 import os
 from typing import Literal
+from uuid import uuid4
 
 import av
 import folder_paths
@@ -227,7 +228,7 @@ class SaveAudioExtended:
         for (batch_number, waveform) in enumerate(wave_batch):
             filename_with_batch_num = filename.replace("%batch_num%", str(batch_number))
             fmt = str(format).lower()
-            file = f"{filename_with_batch_num}_{counter:05}_.{fmt}"
+            file = f"{filename_with_batch_num}-{uuid4()}.{fmt}"
 
             # Encode to bytes once
             try:

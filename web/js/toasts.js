@@ -78,6 +78,88 @@ export async function setupToasts(app) {
         handleLoadStatus(ev.detail || {})
     );
 
+    // Audio toasts
+    app.api.addEventListener("comfyui.saveaudioextended.status", (ev) => {
+        const d = ev.detail || {};
+        const provider = d?.provider ? ` via ${d.provider}` : "";
+        switch (d?.phase) {
+            case "start":
+                toast("info", "Saving audio", `Starting save${provider}...`, 2200);
+                break;
+            case "error":
+                toast("error", "Save failed", d?.message || "Unknown error", 5000);
+                break;
+            case "complete": {
+                const parts = [];
+                if (typeof d?.count_local === "number") parts.push(`${d.count_local} local`);
+                if (typeof d?.count_cloud === "number") parts.push(`${d.count_cloud} cloud`);
+                const detail = parts.length ? `Saved ${parts.join(" and ")}${provider}.` : `Completed${provider}.`;
+                toast("success", "Audio saved", detail, 3600);
+                break;
+            }
+            default:
+                break;
+        }
+    });
+    app.api.addEventListener("comfyui.loadaudioextended.status", (ev) => {
+        const d = ev.detail || {};
+        const provider = d?.provider ? ` from ${d.provider}` : " from local";
+        switch (d?.phase) {
+            case "start":
+                toast("info", "Loading audio", `Starting load${provider}...`, 2200);
+                break;
+            case "error":
+                toast("error", "Load failed", d?.message || "Unknown error", 5000);
+                break;
+            case "complete":
+                toast("success", "Audio loaded", `Loaded ${d?.count ?? "?"} item(s)${provider}.`, 3600);
+                break;
+            default:
+                break;
+        }
+    });
+
+    // Video toasts
+    app.api.addEventListener("comfyui.savevideoextended.status", (ev) => {
+        const d = ev.detail || {};
+        const provider = d?.provider ? ` via ${d.provider}` : "";
+        switch (d?.phase) {
+            case "start":
+                toast("info", "Saving video", `Starting save${provider}...`, 2200);
+                break;
+            case "error":
+                toast("error", "Save failed", d?.message || "Unknown error", 5000);
+                break;
+            case "complete": {
+                const parts = [];
+                if (typeof d?.count_local === "number") parts.push(`${d.count_local} local`);
+                if (typeof d?.count_cloud === "number") parts.push(`${d.count_cloud} cloud`);
+                const detail = parts.length ? `Saved ${parts.join(" and ")}${provider}.` : `Completed${provider}.`;
+                toast("success", "Video saved", detail, 3600);
+                break;
+            }
+            default:
+                break;
+        }
+    });
+    app.api.addEventListener("comfyui.loadvideoextended.status", (ev) => {
+        const d = ev.detail || {};
+        const provider = d?.provider ? ` from ${d.provider}` : " from local";
+        switch (d?.phase) {
+            case "start":
+                toast("info", "Loading video", `Starting load${provider}...`, 2200);
+                break;
+            case "error":
+                toast("error", "Load failed", d?.message || "Unknown error", 5000);
+                break;
+            case "complete":
+                toast("success", "Video loaded", `Completed${provider}.`, 3600);
+                break;
+            default:
+                break;
+        }
+    });
+
     // Map generic server notifications to ComfyUI Toasts
     // Reference: https://docs.comfy.org/custom-nodes/walkthrough#send-a-message-from-server
     app.api.addEventListener("display_notification", (ev) => {

@@ -4,6 +4,7 @@ import json
 import os
 from fractions import Fraction
 from typing import Literal
+from uuid import uuid4
 
 import av
 import folder_paths
@@ -171,7 +172,7 @@ class SaveVideoExtended(ComfyNodeABC):
                 metadata["prompt"] = prompt
             if len(metadata) > 0:
                 saved_metadata = metadata
-        file = f"{filename}_{counter:05}_.{Types.VideoContainer.get_extension(format)}"
+        file = f"{filename}-{uuid4()}.{Types.VideoContainer.get_extension(format)}"
         out_path = os.path.join(local_save_dir, file)
 
         _notify("start", {"total": 1, "provider": cloud_provider if save_to_cloud else None})
@@ -197,8 +198,17 @@ class SaveVideoExtended(ComfyNodeABC):
                 with open(out_path, "rb") as f:
                     data = f.read()
                 Uploader = get_uploader(cloud_provider)
-                cloud_results = Uploader.upload_many([{"filename": file, "content": data}], bucket_link, cloud_folder_path, cloud_api_key)
-                _notify("progress", {"where": "cloud", "current": 1, "total": 1, "filename": file, "provider": cloud_provider})
+                sent_bytes = {"n": 0}
+                def _bytes_cb(info: dict):
+                    delta = int(info.get("delta") or 0)
+                    sent_bytes["n"] += delta
+                    _notify("progress", {"where": "cloud", "bytes_done": sent_bytes["n"], "bytes_total": len(data), "filename": info.get("filename"), "provider": cloud_provider})
+                def _progress_cb(info: dict):
+                    _notify("progress", {"where": "cloud", "current": (info.get("index", 0) + 1), "total": 1, "filename": info.get("path"), "provider": cloud_provider})
+                try:
+                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], bucket_link, cloud_folder_path, cloud_api_key, _progress_cb, _bytes_cb)
+                except TypeError:
+                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], bucket_link, cloud_folder_path, cloud_api_key, _progress_cb)
             except Exception as e:
                 _notify("error", {"message": str(e)})
             else:

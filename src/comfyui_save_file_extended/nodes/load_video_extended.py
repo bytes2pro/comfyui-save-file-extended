@@ -71,7 +71,18 @@ class LoadVideoExtended(ComfyNodeABC):
         if load_from_cloud:
             Uploader = get_uploader(cloud_provider)
             try:
-                raw = Uploader.download(name, bucket_link, cloud_folder_path, cloud_api_key)
+                def _progress_cb(info: dict):
+                    _notify("progress", {"where": "cloud", "current": (info.get("index", 0) + 1), "total": 1, "filename": info.get("path"), "provider": cloud_provider})
+                bytes_done = {"n": 0}
+                def _bytes_cb(info: dict):
+                    delta = int(info.get("delta") or 0)
+                    bytes_done["n"] += delta
+                    _notify("progress", {"where": "cloud", "bytes_done": bytes_done["n"], "filename": info.get("filename"), "provider": cloud_provider})
+                try:
+                    results = Uploader.download_many([name], bucket_link, cloud_folder_path, cloud_api_key, _progress_cb, _bytes_cb)
+                except TypeError:
+                    results = Uploader.download_many([name], bucket_link, cloud_folder_path, cloud_api_key, _progress_cb)
+                raw = results[0]["content"]
             except Exception as e:
                 _notify("error", {"message": str(e)})
                 raise

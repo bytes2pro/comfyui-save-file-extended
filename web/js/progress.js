@@ -213,14 +213,12 @@ export async function setupProgress(app) {
         return `${kind}:${provider}`;
     }
 
-    function ensureItem(kind, d) {
+    function ensureItem(kind, d, resourceLabel = "images") {
         const accent = kind === "save" ? "#4aa3ff" : "#b78cff";
         const provider = d?.provider
             ? ` ${kind === "save" ? "to" : "from"} ${d.provider}`
             : "";
-        const label = `${
-            kind === "save" ? "Saving images" : "Loading images"
-        }${provider}`;
+        const label = `${kind === "save" ? "Saving" : "Loading"} ${resourceLabel}${provider}`;
         const key = keyFor(kind, d);
         return items.get(key) || createItem(key, label, accent);
     }
@@ -231,13 +229,13 @@ export async function setupProgress(app) {
         bumpActivity();
         const key = keyFor("save", d);
         if (d.phase === "start") {
-            const it = ensureItem("save", d);
+            const it = ensureItem("save", d, "images");
             updateItem(key, 0, detailText("Starting", d));
         } else if (d.phase === "progress") {
-            ensureItem("save", d);
+            ensureItem("save", d, "images");
             updateItem(key, calcPct(d), detailText("Saving", d));
         } else if (d.phase === "complete") {
-            ensureItem("save", d);
+            ensureItem("save", d, "images");
             const parts = [];
             if (typeof d.count_local === "number")
                 parts.push(`${d.count_local} local`);
@@ -250,7 +248,7 @@ export async function setupProgress(app) {
             );
             completeItem(key, "ok");
         } else if (d.phase === "error") {
-            ensureItem("save", d);
+            ensureItem("save", d, "images");
             updateItem(key, undefined, `Error: ${d.message || "unknown"}`);
             completeItem(key, "error");
         }
@@ -262,17 +260,111 @@ export async function setupProgress(app) {
         bumpActivity();
         const key = keyFor("load", d);
         if (d.phase === "start") {
-            const it = ensureItem("load", d);
+            const it = ensureItem("load", d, "images");
             updateItem(key, 0, detailText("Starting", d));
         } else if (d.phase === "progress") {
-            ensureItem("load", d);
+            ensureItem("load", d, "images");
             updateItem(key, calcPct(d), detailText("Loading", d));
         } else if (d.phase === "complete") {
-            ensureItem("load", d);
+            ensureItem("load", d, "images");
             updateItem(key, 100, `Completed ${d.count || 0} item(s)`);
             completeItem(key, "ok");
         } else if (d.phase === "error") {
-            ensureItem("load", d);
+            ensureItem("load", d, "images");
+            updateItem(key, undefined, `Error: ${d.message || "unknown"}`);
+            completeItem(key, "error");
+        }
+    });
+
+    // Audio save events
+    app.api.addEventListener("comfyui.saveaudioextended.status", (ev) => {
+        const d = ev.detail || {};
+        bumpActivity();
+        const key = keyFor("save", d);
+        if (d.phase === "start") {
+            ensureItem("save", d, "audio");
+            updateItem(key, 0, detailText("Starting", d));
+        } else if (d.phase === "progress") {
+            ensureItem("save", d, "audio");
+            updateItem(key, calcPct(d), detailText("Saving", d));
+        } else if (d.phase === "complete") {
+            ensureItem("save", d, "audio");
+            const parts = [];
+            if (typeof d.count_local === "number") parts.push(`${d.count_local} local`);
+            if (typeof d.count_cloud === "number") parts.push(`${d.count_cloud} cloud`);
+            updateItem(key, 100, `Completed ${parts.join(" and ") || ""}`.trim());
+            completeItem(key, "ok");
+        } else if (d.phase === "error") {
+            ensureItem("save", d, "audio");
+            updateItem(key, undefined, `Error: ${d.message || "unknown"}`);
+            completeItem(key, "error");
+        }
+    });
+
+    // Audio load events
+    app.api.addEventListener("comfyui.loadaudioextended.status", (ev) => {
+        const d = ev.detail || {};
+        bumpActivity();
+        const key = keyFor("load", d);
+        if (d.phase === "start") {
+            ensureItem("load", d, "audio");
+            updateItem(key, 0, detailText("Starting", d));
+        } else if (d.phase === "progress") {
+            ensureItem("load", d, "audio");
+            updateItem(key, calcPct(d), detailText("Loading", d));
+        } else if (d.phase === "complete") {
+            ensureItem("load", d, "audio");
+            updateItem(key, 100, `Completed ${d.count || 0} item(s)`);
+            completeItem(key, "ok");
+        } else if (d.phase === "error") {
+            ensureItem("load", d, "audio");
+            updateItem(key, undefined, `Error: ${d.message || "unknown"}`);
+            completeItem(key, "error");
+        }
+    });
+
+    // Video save events
+    app.api.addEventListener("comfyui.savevideoextended.status", (ev) => {
+        const d = ev.detail || {};
+        bumpActivity();
+        const key = keyFor("save", d);
+        if (d.phase === "start") {
+            ensureItem("save", d, "video");
+            updateItem(key, 0, detailText("Starting", d));
+        } else if (d.phase === "progress") {
+            ensureItem("save", d, "video");
+            updateItem(key, calcPct(d), detailText("Saving", d));
+        } else if (d.phase === "complete") {
+            ensureItem("save", d, "video");
+            const parts = [];
+            if (typeof d.count_local === "number") parts.push(`${d.count_local} local`);
+            if (typeof d.count_cloud === "number") parts.push(`${d.count_cloud} cloud`);
+            updateItem(key, 100, `Completed ${parts.join(" and ") || ""}`.trim());
+            completeItem(key, "ok");
+        } else if (d.phase === "error") {
+            ensureItem("save", d, "video");
+            updateItem(key, undefined, `Error: ${d.message || "unknown"}`);
+            completeItem(key, "error");
+        }
+    });
+
+    // Video load events
+    app.api.addEventListener("comfyui.loadvideoextended.status", (ev) => {
+        const d = ev.detail || {};
+        bumpActivity();
+        const key = keyFor("load", d);
+        if (d.phase === "start") {
+            ensureItem("load", d, "video");
+            updateItem(key, 0, detailText("Starting", d));
+        } else if (d.phase === "progress") {
+            ensureItem("load", d, "video");
+            updateItem(key, calcPct(d), detailText("Loading", d));
+        } else if (d.phase === "complete") {
+            ensureItem("load", d, "video");
+            updateItem(key, 100, `Completed ${d.count || 0} item(s)`);
+            completeItem(key, "ok");
+        } else if (d.phase === "error") {
+            ensureItem("load", d, "video");
             updateItem(key, undefined, `Error: ${d.message || "unknown"}`);
             completeItem(key, "error");
         }
