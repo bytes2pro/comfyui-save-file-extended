@@ -29,6 +29,24 @@ class SaveImageExtended:
                 "images": ("IMAGE", {"tooltip": "The images to save."}),
                 "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "The prefix for the file to save. This may include formatting information such as %date:yyyy-MM-dd% or %Empty Latent Image.width% to include values from nodes."})
             },
+            "optional": {
+                "save_to_cloud": ("BOOLEAN", {"default": True, "socketless": True, "label_on": "Enabled", "label_off": "Disabled", "tooltip": "Section: Save to Cloud (visual only)."}),
+                "cloud_provider": ([
+                    "AWS S3",
+                    "Google Cloud Storage",
+                    "Azure Blob Storage",
+                    "Backblaze B2",
+                    "Supabase Storage",
+                    "S3-Compatible"
+                ], {"default": "AWS S3", "tooltip": "Choose a cloud provider (visual only)."}),
+                "bucket_link": ("STRING", {"default": "", "placeholder": "Bucket URL / Connection String", "tooltip": "Bucket URL or connection string (required when cloud is enabled)."}),
+                "cloud_folder_path": ("STRING", {"default": "", "placeholder": "Folder path in bucket, e.g. outputs/", "tooltip": "Path inside the bucket to store images (required)."}),
+                "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key", "tooltip": "Auth/API key or credentials (required)."}),
+
+                # Local section (visual only)
+                "save_to_local": ("BOOLEAN", {"default": False, "socketless": True, "label_on": "Enabled", "label_off": "Disabled", "tooltip": "Section: Save to Local (visual only)."}),
+                "local_folder_path": ("STRING", {"default": "", "placeholder": "/path/to/local/folder", "tooltip": "Local folder path (required when local is enabled)."}),
+            },
             "hidden": {
                 "prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"
             },
@@ -40,9 +58,17 @@ class SaveImageExtended:
     OUTPUT_NODE = True
 
     CATEGORY = "image"
-    DESCRIPTION = "Saves the input images to your chosen cloud provider or local ComfyUI output directory."
+    DESCRIPTION = "Save Image (Extended UI): Saves the input images to your chosen cloud provider or local ComfyUI output directory."
 
-    def save_images_extended(self, images, filename_prefix="ComfyUI", prompt=None, extra_pnginfo=None):
+    def save_images_extended(self, images, filename_prefix="ComfyUI",
+                             save_to_cloud=True,
+                             cloud_provider="AWS S3",
+                             bucket_link="",
+                             cloud_folder_path="",
+                             cloud_api_key="",
+                             save_to_local=False,
+                             local_folder_path="",
+                             prompt=None, extra_pnginfo=None):
         filename_prefix += self.prefix_append
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])
         results = list()
