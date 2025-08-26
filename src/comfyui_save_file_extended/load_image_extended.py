@@ -259,10 +259,6 @@ class LoadImageExtended:
             )
         except Exception:
             pass
-        # Success toast
-        if len(tensors):
-            src = cloud_provider if load_from_cloud else "local"
-            _toast("success", "Images loaded", f"Loaded {len(tensors)} image(s) from {src}")
         return (out_img, out_mask)
 
     @classmethod

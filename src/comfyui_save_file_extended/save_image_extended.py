@@ -220,7 +220,13 @@ class SaveImageExtended:
                     })
                 except Exception as e:
                     print(f"[SaveImageExtended] Failed to save locally: {e}")
-                    _toast("error", "Local save failed", str(e))
+                    try:
+                        PromptServer.instance.send_sync(
+                            "comfyui.saveimageextended.status",
+                            {"phase": "error", "message": str(e)}
+                        )
+                    except Exception:
+                        pass
                 else:
                     try:
                         PromptServer.instance.send_sync(
@@ -285,7 +291,6 @@ class SaveImageExtended:
                     )
                 except Exception:
                     pass
-                _toast("error", "Cloud upload failed", str(e))
             else:
                 try:
                     PromptServer.instance.send_sync(
@@ -294,12 +299,15 @@ class SaveImageExtended:
                     )
                 except Exception:
                     pass
-                # Success toast
-                msg = f"Saved {len(results)} locally" if save_to_local else None
-                if save_to_cloud:
-                    cloud_msg = f"Uploaded {len(cloud_results)} to {cloud_provider}"
-                    msg = f"{msg} and {cloud_msg}" if msg else cloud_msg
-                if msg:
-                    _toast("success", "Images saved", msg)
+
+        # If we didn't perform a cloud upload (local-only or no items), still send a complete status
+        if not save_to_cloud or not cloud_items:
+            try:
+                PromptServer.instance.send_sync(
+                    "comfyui.saveimageextended.status",
+                    {"phase": "complete", "count_local": len(results), "count_cloud": 0, "provider": None}
+                )
+            except Exception:
+                pass
 
         return { "ui": { "images": results }, "cloud": cloud_results }

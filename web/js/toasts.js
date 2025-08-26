@@ -1,5 +1,5 @@
 export async function setupToasts(app) {
-    const toast = (severity, summary, detail, life = 3000) => {
+    const toast = (severity, summary, detail, life = 3200) => {
         try {
             app.extensionManager.toast.add({
                 severity,
@@ -20,11 +20,11 @@ export async function setupToasts(app) {
                     "info",
                     "Saving images",
                     `Starting save${provider}...`,
-                    2000
+                    2200
                 );
                 break;
             case "error":
-                toast("error", "Save failed", d?.message || "Unknown error");
+                toast("error", "Save failed", d?.message || "Unknown error", 5000);
                 break;
             case "complete": {
                 const parts = [];
@@ -35,7 +35,7 @@ export async function setupToasts(app) {
                 const detail = parts.length
                     ? `Saved ${parts.join(" and ")}${provider}.`
                     : `Completed${provider}.`;
-                toast("success", "Images saved", detail);
+                toast("success", "Images saved", detail, 3600);
                 break;
             }
             default:
@@ -51,17 +51,18 @@ export async function setupToasts(app) {
                     "info",
                     "Loading images",
                     `Starting load${provider}...`,
-                    2000
+                    2200
                 );
                 break;
             case "error":
-                toast("error", "Load failed", d?.message || "Unknown error");
+                toast("error", "Load failed", d?.message || "Unknown error", 5000);
                 break;
             case "complete":
                 toast(
                     "success",
                     "Images loaded",
-                    `Loaded ${d?.count ?? "?"} image(s)${provider}.`
+                    `Loaded ${d?.count ?? "?"} image(s)${provider}.`,
+                    3600
                 );
                 break;
             default:
@@ -84,14 +85,14 @@ export async function setupToasts(app) {
         const severity = d.kind || d.severity || "info";
         const summary = d.title || "Notification";
         const detail = d.message || d.detail || "";
-        toast(severity, summary, detail);
+        toast(severity, summary, detail, 3200);
     });
     app.api.addEventListener("notification", (ev) => {
         const d = ev.detail || {};
         const severity = d.kind || d.severity || "info";
         const summary = d.title || "Notification";
         const detail = d.message || d.detail || "";
-        toast(severity, summary, detail);
+        toast(severity, summary, detail, 3200);
     });
     app.api.addEventListener("display_component", (ev) => {
         const d = ev.detail || {};
