@@ -40,7 +40,7 @@ class SaveAudioExtended:
             },
             "optional": {
                 # Quality settings (interpretation depends on format)
-                "quality": (["V0", "128k", "192k", "320k"], {"default": "V0", "tooltip": "For mp3/opus, selects bitrate or VBR preset. Ignored for wav/flac."}),
+                "quality": (["V0", "64k", "96k", "128k", "192k", "320k"], {"default": "128k", "tooltip": "For mp3/opus, selects bitrate or VBR preset. Ignored for wav/flac."}),
                 # Cloud section
                 "save_to_cloud": ("BOOLEAN", {"default": False, "socketless": True, "label_on": "Enabled", "label_off": "Disabled"}),
                 "cloud_provider": ([
@@ -79,7 +79,7 @@ class SaveAudioExtended:
         audio,
         filename_prefix="ComfyUI",
         format="flac",
-        quality="V0",
+        quality="128k",
         save_to_cloud=False,
         cloud_provider="AWS S3",
         bucket_link="",
@@ -90,6 +90,16 @@ class SaveAudioExtended:
         prompt=None,
         extra_pnginfo=None,
     ):
+        fmt = (str(format) if format is not None else "").lower()
+        q = str(quality) if quality is not None else ""
+        if fmt == "mp3":
+            allowed_mp3 = {"V0", "128k", "320k"}
+            if q and q not in allowed_mp3:
+                return "For MP3, quality must be one of: V0, 128k, 320k."
+        if fmt == "opus":
+            allowed_opus = {"64k", "96k", "128k", "192k", "320k"}
+            if q and q not in allowed_opus:
+                return "For Opus, quality must be one of: 64k, 96k, 128k, 192k, 320k."
         if not save_to_cloud and not save_to_local:
             return "Enable at least one of 'Save to Cloud' or 'Save to Local'."
         if save_to_cloud:
@@ -144,15 +154,17 @@ class SaveAudioExtended:
             frame = av.AudioFrame.from_ndarray(waveform.movedim(0, 1).contiguous().float().numpy(), format='flt', layout=layout)
         elif fmt == "opus":
             stream = container.add_stream("libopus", rate=sample_rate)
-            # Map quality choices to bitrates
-            if quality == "128k":
+            # Map quality choices to bitrates (match core nodes: 64k/96k/128k/192k/320k)
+            if quality == "64k":
+                stream.bit_rate = 64000
+            elif quality == "96k":
+                stream.bit_rate = 96000
+            elif quality == "128k":
                 stream.bit_rate = 128000
             elif quality == "192k":
                 stream.bit_rate = 192000
             elif quality == "320k":
                 stream.bit_rate = 320000
-            elif quality == "V0":
-                stream.bit_rate = 160000
             frame = av.AudioFrame.from_ndarray(waveform.movedim(0, 1).contiguous().float().numpy(), format='flt', layout=layout)
         elif fmt == "wav":
             stream = container.add_stream("pcm_s16le", rate=sample_rate)
@@ -171,7 +183,7 @@ class SaveAudioExtended:
         output_buffer.seek(0)
         return output_buffer.getvalue()
 
-    def save_audio(self, audio, filename_prefix="ComfyUI", format="flac", quality="V0", save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
+    def save_audio(self, audio, filename_prefix="ComfyUI", format="flac", quality="128k", save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
         def _notify(kind: str, payload: dict):
             try:
                 PromptServer.instance.send_sync(
@@ -278,6 +290,8 @@ class SaveAudioMP3Extended:
         spec = SaveAudioExtended.INPUT_TYPES()
         # Lock format to mp3 by default
         spec["required"]["format"] = (["mp3"], {"default": "mp3"})
+        # Match core node: MP3 quality options
+        spec["optional"]["quality"] = (["V0", "128k", "320k"], {"default": "V0"})
         return spec
 
     RETURN_TYPES = ()
@@ -302,7 +316,7 @@ class SaveAudioOpusExtended:
         spec = SaveAudioExtended.INPUT_TYPES()
         # Lock format to opus by default and expose bitrate options
         spec["required"]["format"] = (["opus"], {"default": "opus"})
-        spec["optional"]["quality"] = (["128k", "160k", "192k", "320k"], {"default": "160k"})
+        spec["optional"]["quality"] = (["64k", "96k", "128k", "192k", "320k"], {"default": "128k"})
         return spec
 
     RETURN_TYPES = ()

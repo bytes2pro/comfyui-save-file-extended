@@ -12,6 +12,13 @@ Load audio from the local input directory or from a cloud provider.
 - Supports audio files and video files (audio stream extracted).
 - Emits progress events on `comfyui.loadaudioextended.status`.
 
+### UI and events
+
+-   A floating status panel displays real-time per-item and byte-level progress.
+-   Status events: `start`, `progress` (items and/or bytes), `complete`, `error` on `comfyui.loadaudioextended.status`.
+
 ### Output
 An AUDIO dict: `{ waveform: [B,C,T], sample_rate: int }`. Multiple inputs are batched when compatible.
+
+If multiple inputs are provided and they have matching channel counts, they are concatenated into a batch; otherwise, only the first item is returned.
 

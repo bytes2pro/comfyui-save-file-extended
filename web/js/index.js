@@ -1,12 +1,17 @@
 import { setupProgress } from "./progress.js";
+import { setupStatus } from "./savefile-extended-status.js";
 import { setupToasts } from "./toasts.js";
-import { beforeRegisterNodeDef as uiBeforeRegisterNodeDef } from "./ui_enhance.js";
+import { beforeRegisterNodeDef as uiBeforeRegisterNodeDef } from "./ui-enhance.js";
 import { app } from "/scripts/app.js";
 
 app.registerExtension({
     name: "comfyui.savefileextended",
     async setup(app) {
-        await Promise.all([setupProgress(app), setupToasts(app)]);
+        await Promise.all([
+            setupProgress(app),
+            setupToasts(app),
+            setupStatus(app),
+        ]);
     },
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         await uiBeforeRegisterNodeDef(nodeType, nodeData, app);
