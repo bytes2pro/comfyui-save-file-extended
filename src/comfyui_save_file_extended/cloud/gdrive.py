@@ -1,22 +1,23 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
-from urllib.parse import urlparse
+from typing import Any, Dict, Tuple
+from urllib.parse import parse_qs, urlparse
 
 import requests
+
 from ._logging import log_exceptions
 
 
 @log_exceptions
-def _resolve_parent_id_from_path(api_token: str, path: str) -> str:
+def _resolve_parent_id_from_path(api_token: str, path: str, base_parent_id: str = "root") -> str:
     """
     Resolve or create folders by path under My Drive and return the parent folder ID.
     This requires that api_token is a valid OAuth2 access token with drive scope.
     """
 
     headers = {"Authorization": f"Bearer {api_token}"}
-    parent_id = "root"
+    parent_id = base_parent_id or "root"
     parts = [p for p in path.strip("/").split("/") if p]
     for part in parts:
         q = f"name='{part}' and mimeType='application/vnd.google-apps.folder' and '{parent_id}' in parents and trashed=false"
@@ -71,7 +72,49 @@ def _get_access_token(api_key: str) -> str:
 @log_exceptions
 def _get_headers(api_key: str) -> Dict[str, str]:
     access_token = _get_access_token(api_key)
+    if not access_token:
+        raise ValueError("[SaveFileExtended:gdrive] Missing access token after parsing cloud_api_key")
     return {"Authorization": f"Bearer {access_token}"}
+
+
+def _extract_drive_folder_id_and_path(bucket_link: str) -> Tuple[str | None, str]:
+    """
+    Accepts:
+      - drive://<folderId>/<optional/subpath>
+      - https://drive.google.com/drive/folders/<folderId>[/<optional/subpath>]
+      - https://drive.google.com/drive/u/0/folders/<folderId>
+      - https://drive.google.com/open?id=<folderId>
+      - plain path like /My/Folder/Sub (returns (None, "/My/Folder/Sub"))
+    Returns: (folder_id_or_none, base_path)
+    """
+    parsed = urlparse(bucket_link)
+    # drive:// scheme
+    if parsed.scheme == "drive":
+        segs = parsed.netloc.split("/") if parsed.netloc else []
+        folder_id = segs[0] if segs else None
+        base_path = parsed.path or ""
+        return folder_id, base_path
+    # google drive URL
+    if parsed.netloc and "drive.google.com" in parsed.netloc:
+        path_parts = [p for p in parsed.path.split("/") if p]
+        folder_id = None
+        base_path = ""
+        if "folders" in path_parts:
+            try:
+                idx = path_parts.index("folders")
+                folder_id = path_parts[idx + 1]
+                # anything after folderId we treat as base_path
+                remainder = path_parts[idx + 2:]
+                base_path = "/" + "/".join(remainder) if remainder else ""
+            except (ValueError, IndexError):
+                folder_id = None
+        if not folder_id:
+            qs = parse_qs(parsed.query or "")
+            vals = qs.get("id")
+            folder_id = vals[0] if vals else None
+        return folder_id, base_path
+    # default: treat as plain path
+    return None, parsed.path or bucket_link
 
 
 class Uploader:
@@ -81,16 +124,8 @@ class Uploader:
         if not api_key:
             raise ValueError("[SaveFileExtended:gdrive:upload] Google Drive api_key must be an OAuth2 access token with drive scope")
 
-        # bucket_link can be a folder path or a folder id prefixed with drive://id/<optional-subpath>
-        parsed = urlparse(bucket_link)
-        base_path = parsed.path if parsed.scheme != "drive" else ""
-        folder_id = None
-        if parsed.scheme == "drive":
-            # drive://<folderId>/<optional-subpath>
-            segs = parsed.netloc.split("/") if parsed.netloc else []
-            folder_id = segs[0] if segs else None
-            if parsed.path:
-                base_path = parsed.path
+        # bucket_link can be a folder path, a Google Drive folder URL, or a folder id prefixed with drive://
+        folder_id, base_path = _extract_drive_folder_id_and_path(bucket_link)
 
         path_prefix = "/".join([p.strip("/") for p in [base_path, cloud_folder_path] if p and p.strip("/")])
 
@@ -98,13 +133,10 @@ class Uploader:
         headers = _get_headers(api_key)
 
         if folder_id is None:
-            parent_id = _resolve_parent_id_from_path(access_token, path_prefix)
+            parent_id = _resolve_parent_id_from_path(access_token, path_prefix, base_parent_id="root")
         else:
-            # If extra path under folder id
-            if path_prefix:
-                parent_id = _resolve_parent_id_from_path(access_token, path_prefix)
-            else:
-                parent_id = folder_id
+            # Resolve any extra path under the provided folder id
+            parent_id = _resolve_parent_id_from_path(access_token, path_prefix, base_parent_id=folder_id) if path_prefix else folder_id
 
         metadata = {"name": filename, "parents": [parent_id]}
         files = {
@@ -129,26 +161,16 @@ class Uploader:
         if not api_key:
             raise ValueError("[SaveFileExtended:gdrive:upload_many] Google Drive api_key must be an OAuth2 access token with drive scope")
 
-        parsed = urlparse(bucket_link)
-        base_path = parsed.path if parsed.scheme != "drive" else ""
-        folder_id = None
-        if parsed.scheme == "drive":
-            segs = parsed.netloc.split("/") if parsed.netloc else []
-            folder_id = segs[0] if segs else None
-            if parsed.path:
-                base_path = parsed.path
+        folder_id, base_path = _extract_drive_folder_id_and_path(bucket_link)
 
         path_prefix = "/".join([p.strip("/") for p in [base_path, cloud_folder_path] if p and p.strip("/")])
         access_token = _get_access_token(api_key)
         headers = _get_headers(api_key)
 
         if folder_id is None:
-            parent_id = _resolve_parent_id_from_path(access_token, path_prefix)
+            parent_id = _resolve_parent_id_from_path(access_token, path_prefix, base_parent_id="root")
         else:
-            if path_prefix:
-                parent_id = _resolve_parent_id_from_path(access_token, path_prefix)
-            else:
-                parent_id = folder_id
+            parent_id = _resolve_parent_id_from_path(access_token, path_prefix, base_parent_id=folder_id) if path_prefix else folder_id
 
         results: list[Dict[str, Any]] = []
         for idx, item in enumerate(items):
@@ -200,20 +222,13 @@ class Uploader:
     @log_exceptions
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
         access_token = _get_access_token(api_key)
-        parsed = urlparse(bucket_link)
-        base_path = parsed.path if parsed.scheme != "drive" else ""
-        folder_id = None
-        if parsed.scheme == "drive":
-            segs = parsed.netloc.split("/") if parsed.netloc else []
-            folder_id = segs[0] if segs else None
-            if parsed.path:
-                base_path = parsed.path
+        folder_id, base_path = _extract_drive_folder_id_and_path(bucket_link)
         path_prefix = "/".join([p.strip("/") for p in [base_path, cloud_folder_path] if p and p.strip("/")])
 
         if folder_id is None:
-            parent_id = _resolve_parent_id_from_path(access_token, path_prefix)
+            parent_id = _resolve_parent_id_from_path(access_token, path_prefix, base_parent_id="root")
         else:
-            parent_id = _resolve_parent_id_from_path(access_token, path_prefix) if path_prefix else folder_id
+            parent_id = _resolve_parent_id_from_path(access_token, path_prefix, base_parent_id=folder_id) if path_prefix else folder_id
 
         headers = _get_headers(api_key)
         q = f"name='{key_or_filename}' and '{parent_id}' in parents and trashed=false"
@@ -231,16 +246,12 @@ class Uploader:
     @log_exceptions
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         access_token = _get_access_token(api_key)
-        parsed = urlparse(bucket_link)
-        base_path = parsed.path if parsed.scheme != "drive" else ""
-        folder_id = None
-        if parsed.scheme == "drive":
-            segs = parsed.netloc.split("/") if parsed.netloc else []
-            folder_id = segs[0] if segs else None
-            if parsed.path:
-                base_path = parsed.path
+        folder_id, base_path = _extract_drive_folder_id_and_path(bucket_link)
         path_prefix = "/".join([p.strip("/") for p in [base_path, cloud_folder_path] if p and p.strip("/")])
-        parent_id = _resolve_parent_id_from_path(access_token, path_prefix) if folder_id is None or path_prefix else folder_id
+        parent_id = (
+            _resolve_parent_id_from_path(access_token, path_prefix, base_parent_id="root") if folder_id is None
+            else (_resolve_parent_id_from_path(access_token, path_prefix, base_parent_id=folder_id) if path_prefix else folder_id)
+        )
 
         headers = _get_headers(api_key)
         results: list[Dict[str, Any]] = []

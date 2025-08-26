@@ -29,7 +29,7 @@ Load images from your local input directory or directly from supported cloud pro
 -   Google Cloud Storage → bucket_link: `gs://bucket/prefix` or `bucket/prefix`.
 -   Azure Blob → bucket_link: connection string OR `https://account.blob.core.windows.net/container/prefix`.
 -   Backblaze B2 → bucket_link: `b2://bucket/prefix` or `bucket/prefix`.
--   Google Drive → bucket_link: `/MyFolder/Sub` OR `drive://<folderId>/<optional/subpath>`.
+-   Google Drive → bucket_link: `/MyFolder/Sub` OR `drive://<folderId>/<optional/subpath>` OR a folder URL like `https://drive.google.com/drive/folders/<folderId>`.
 -   Dropbox → bucket_link: `/base/path`.
 -   OneDrive → bucket_link: `/base/path`.
 -   FTP → bucket_link: `ftp://user:pass@host[:port]/basepath`.
@@ -68,8 +68,9 @@ Load images from your local input directory or directly from supported cloud pro
 
 ### Google Drive
 
--   Bucket link: `/MyFolder/Sub` OR `drive://<folderId>/<optional/subpath>`
--   API key: OAuth2 JSON `{"client_id","client_secret","refresh_token"}` (optional `access_token`)
+-   Bucket link: `/MyFolder/Sub` OR `drive://<folderId>/<optional/subpath>` OR `https://drive.google.com/drive/folders/<folderId>`
+-   Behavior: When using `drive://<folderId>` (or a Drive folder URL), any `cloud_folder_path` and any extra subpath in the bucket link are resolved relative to that folder ID (not root).
+-   API key: OAuth2 JSON `{"client_id","client_secret","refresh_token"}` (optional `access_token`) or a raw OAuth2 access token string
 
 ### Dropbox
 
