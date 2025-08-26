@@ -119,7 +119,7 @@ class Uploader:
 
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
         if not api_key:
             raise ValueError("Google Drive api_key must be an OAuth2 access token with drive scope")
 
@@ -145,7 +145,7 @@ class Uploader:
                 parent_id = folder_id
 
         results: list[Dict[str, Any]] = []
-        for item in items:
+        for idx, item in enumerate(items):
             filename = item["filename"]
             body = item["content"]
             metadata = {"name": filename, "parents": [parent_id]}
@@ -157,6 +157,11 @@ class Uploader:
             resp.raise_for_status()
             data = resp.json()
             results.append({"provider": "Google Drive", "bucket": parent_id, "path": f"{path_prefix}/{filename}" if path_prefix else filename, "url": f"https://drive.google.com/file/d/{data.get('id')}/view"})
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": filename, "path": f"{path_prefix}/{filename}" if path_prefix else filename})
+                except Exception:
+                    pass
 
         return results
 
@@ -191,7 +196,7 @@ class Uploader:
         return resp.content
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
         access_token = _get_access_token(api_key)
         parsed = urlparse(bucket_link)
         base_path = parsed.path if parsed.scheme != "drive" else ""
@@ -206,7 +211,7 @@ class Uploader:
 
         headers = _get_headers(api_key)
         results: list[Dict[str, Any]] = []
-        for name in keys:
+        for idx, name in enumerate(keys):
             q = f"name='{name}' and '{parent_id}' in parents and trashed=false"
             search = requests.get("https://www.googleapis.com/drive/v3/files", params={"q": q, "fields": "files(id,name)"}, headers=headers)
             search.raise_for_status()
@@ -217,4 +222,9 @@ class Uploader:
             resp = requests.get(f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media", headers=headers)
             resp.raise_for_status()
             results.append({"filename": name, "content": resp.content})
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": name, "path": f"{path_prefix}/{name}" if path_prefix else name})
+                except Exception:
+                    pass
         return results

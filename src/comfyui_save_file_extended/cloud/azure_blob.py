@@ -68,7 +68,7 @@ class Uploader:
         }
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
         account_url, container, _ = _parse_container_and_blob(bucket_link, cloud_folder_path, "dummy")
 
         service_client = Uploader._create_service_client(bucket_link, api_key, account_url)
@@ -80,7 +80,7 @@ class Uploader:
             pass
 
         results: list[Dict[str, Any]] = []
-        for item in items:
+        for idx, item in enumerate(items):
             filename = item["filename"]
             body = item["content"]
             _, _, blob_name = _parse_container_and_blob(bucket_link, cloud_folder_path, filename)
@@ -89,6 +89,11 @@ class Uploader:
             blob_client.upload_blob(body, overwrite=True, content_settings=content_settings)
             url = f"{service_client.url}/{container}/{blob_name}"
             results.append({"provider": "Azure Blob Storage", "bucket": container, "path": blob_name, "url": url})
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": filename, "path": blob_name})
+                except Exception:
+                    pass
 
         return results
 
@@ -103,7 +108,7 @@ class Uploader:
         return downloader.readall()
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]: # type: ignore
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]: # type: ignore
         account_url, container, _ = _parse_container_and_blob(bucket_link, cloud_folder_path, "dummy")
 
         if "DefaultEndpointsProtocol=" in bucket_link:
@@ -116,9 +121,15 @@ class Uploader:
             service_client = BlobServiceClient(account_url=account_url, credential=api_key if api_key else None)
 
         results: list[Dict[str, Any]] = []
-        for name in keys:
+        for idx, name in enumerate(keys):
             _, _, blob_name = _parse_container_and_blob(bucket_link, cloud_folder_path, name)
             blob_client = service_client.get_blob_client(container=container, blob=blob_name)
             downloader = blob_client.download_blob()
-            results.append({"filename": name, "content": downloader.readall()})
+            content = downloader.readall()
+            results.append({"filename": name, "content": content})
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": name, "path": blob_name})
+                except Exception:
+                    pass
         return results

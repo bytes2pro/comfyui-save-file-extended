@@ -115,7 +115,7 @@ class Uploader:
         }
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
         if not api_key:
             raise ValueError("OneDrive api_key must be a valid OAuth 2.0 access token")
 
@@ -128,7 +128,7 @@ class Uploader:
         parent_id = _ensure_onedrive_parent_id(access_token, path_prefix)
 
         results: list[Dict[str, Any]] = []
-        for item in items:
+        for idx, item in enumerate(items):
             filename = item["filename"]
             body = item["content"]
             url = f"https://graph.microsoft.com/v1.0/me/drive/items/{parent_id}:/{filename}:/content"
@@ -136,6 +136,11 @@ class Uploader:
             resp.raise_for_status()
             data = resp.json()
             results.append({"provider": "OneDrive", "bucket": "", "path": f"/{path_prefix}/{filename}" if path_prefix else f"/{filename}", "url": data.get("webUrl")})
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": filename, "path": f"/{path_prefix}/{filename}" if path_prefix else f"/{filename}"})
+                except Exception:
+                    pass
         return results
 
     @staticmethod
@@ -149,16 +154,21 @@ class Uploader:
         return resp.content
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
         access_token = _get_access_token(api_key)
         headers = _get_headers(api_key)
         results: list[Dict[str, Any]] = []
-        for name in keys:
+        for idx, name in enumerate(keys):
             path = _build_path(bucket_link, cloud_folder_path, name)
             url = f"https://graph.microsoft.com/v1.0/me/drive/root:{path}:/content"
             resp = requests.get(url, headers=headers)
             resp.raise_for_status()
             results.append({"filename": name, "content": resp.content})
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": name, "path": path})
+                except Exception:
+                    pass
         return results
 
 

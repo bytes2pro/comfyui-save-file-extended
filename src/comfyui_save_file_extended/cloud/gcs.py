@@ -54,19 +54,24 @@ class Uploader:
         }
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
         client = Uploader._create_client(api_key)
 
         bucket_name, _ = _parse_bucket_and_key(bucket_link, cloud_folder_path, "dummy")
         bucket = client.bucket(bucket_name)
         results: list[Dict[str, Any]] = []
-        for item in items:
+        for idx, item in enumerate(items):
             filename = item["filename"]
             body = item["content"]
             _, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, filename)
             blob = bucket.blob(key)
             blob.upload_from_string(body, content_type="image/png")
             results.append({"provider": "Google Cloud Storage", "bucket": bucket_name, "path": key, "url": blob.public_url})
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": filename, "path": key})
+                except Exception:
+                    pass
         return results
 
     @staticmethod
@@ -79,7 +84,7 @@ class Uploader:
         return blob.download_as_bytes()
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
         client: storage.Client
         if api_key and api_key.strip().startswith("{"):
             info = json.loads(api_key)
@@ -94,8 +99,14 @@ class Uploader:
         bucket_name, _ = _parse_bucket_and_key(bucket_link, cloud_folder_path, "dummy")
         bucket = client.bucket(bucket_name)
         results: list[Dict[str, Any]] = []
-        for name in keys:
+        for idx, name in enumerate(keys):
             _, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, name)
             blob = bucket.blob(key)
-            results.append({"filename": name, "content": blob.download_as_bytes()})
+            content = blob.download_as_bytes()
+            results.append({"filename": name, "content": content})
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": name, "path": key})
+                except Exception:
+                    pass
         return results

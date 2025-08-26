@@ -15,6 +15,7 @@ from io import BytesIO
 
 import folder_paths
 from comfy.cli_args import args
+from server import PromptServer
 
 from .cloud import get_uploader
 
@@ -153,6 +154,14 @@ class SaveImageExtended:
         results = list()
         cloud_results = list()
         cloud_items = list()
+        total = len(images)
+        try:
+            PromptServer.instance.send_sync(
+                "comfyui.savefileextended.status",
+                {"phase": "start", "total": total, "provider": cloud_provider if save_to_cloud else None}
+            )
+        except Exception:
+            pass
         if save_to_local:
             print(f"Saving images locally to {local_save_dir}")
         if save_to_cloud:
@@ -187,6 +196,14 @@ class SaveImageExtended:
                     })
                 except Exception as e:
                     print(f"[SaveImageExtended] Failed to save locally: {e}")
+                else:
+                    try:
+                        PromptServer.instance.send_sync(
+                            "comfyui.savefileextended.status",
+                            {"phase": "progress", "where": "local", "current": counter, "total": total, "filename": file}
+                        )
+                    except Exception:
+                        pass
 
             if save_to_cloud:
                 cloud_items.append({"filename": file, "content": png_bytes})
@@ -196,13 +213,45 @@ class SaveImageExtended:
             try:
                 Uploader = get_uploader(cloud_provider)
                 if hasattr(Uploader, "upload_many"):
-                    cloud_results = Uploader.upload_many(cloud_items, bucket_link, cloud_folder_path, cloud_api_key)
+                    def _progress_cb(info: dict):
+                        try:
+                            PromptServer.instance.send_sync(
+                                "comfyui.savefileextended.status",
+                                {"phase": "progress", "where": "cloud", "current": (info.get("index", 0) + 1), "total": len(cloud_items), "filename": info.get("path"), "provider": cloud_provider}
+                            )
+                        except Exception:
+                            pass
+                    cloud_results = Uploader.upload_many(cloud_items, bucket_link, cloud_folder_path, cloud_api_key, _progress_cb)
                 else:
                     # Fallback to single uploads if batch not supported
+                    sent = 0
                     for item in cloud_items:
                         info = Uploader.upload(item["content"], item["filename"], bucket_link, cloud_folder_path, cloud_api_key)
                         cloud_results.append(info)
+                        sent += 1
+                        try:
+                            PromptServer.instance.send_sync(
+                                "comfyui.savefileextended.status",
+                                {"phase": "progress", "where": "cloud", "current": sent, "total": len(cloud_items), "filename": info.get("path"), "provider": cloud_provider}
+                            )
+                        except Exception:
+                            pass
             except Exception as e:
                 print(f"[SaveImageExtended] Cloud batch upload failed: {e}")
+                try:
+                    PromptServer.instance.send_sync(
+                        "comfyui.savefileextended.status",
+                        {"phase": "error", "message": str(e)}
+                    )
+                except Exception:
+                    pass
+            else:
+                try:
+                    PromptServer.instance.send_sync(
+                        "comfyui.savefileextended.status",
+                        {"phase": "complete", "count_local": len(results), "count_cloud": len(cloud_results), "provider": cloud_provider}
+                    )
+                except Exception:
+                    pass
 
         return { "ui": { "images": results }, "cloud": cloud_results }

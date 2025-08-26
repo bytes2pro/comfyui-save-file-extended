@@ -56,19 +56,24 @@ class Uploader:
         }
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
         bucket_name, _ = _parse_bucket_and_key(bucket_link, cloud_folder_path, "dummy")
         b2_api = Uploader._create_api(api_key)
         bucket = b2_api.get_bucket_by_name(bucket_name)
 
         results: list[Dict[str, Any]] = []
-        for item in items:
+        for idx, item in enumerate(items):
             filename = item["filename"]
             body = item["content"]
             _, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, filename)
             file_info = bucket.upload_bytes(body, key, content_type="image/png")
             download_url = f"https://f002.backblazeb2.com/file/{bucket_name}/{key}"
             results.append({"provider": "Backblaze B2", "bucket": bucket_name, "path": key, "url": download_url, "file_id": file_info.id_})
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": filename, "path": key})
+                except Exception:
+                    pass
 
         return results
 
@@ -82,15 +87,21 @@ class Uploader:
         return bio.getvalue()
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
         bucket_name, _ = _parse_bucket_and_key(bucket_link, cloud_folder_path, "dummy")
         b2_api = Uploader._create_api(api_key)
         bucket = b2_api.get_bucket_by_name(bucket_name)
 
         results: list[Dict[str, Any]] = []
-        for name in keys:
+        for idx, name in enumerate(keys):
             _, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, name)
             bio = io.BytesIO()
             bucket.download_file_by_name(key).save(bio)
-            results.append({"filename": name, "content": bio.getvalue()})
+            content = bio.getvalue()
+            results.append({"filename": name, "content": content})
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": name, "path": key})
+                except Exception:
+                    pass
         return results

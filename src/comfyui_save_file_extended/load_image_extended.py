@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "co
 from inspect import cleandoc
 
 import folder_paths
+from server import PromptServer
 
 from .cloud import get_uploader
 
@@ -125,15 +126,38 @@ class LoadImageExtended:
 
         tensors = []
         masks = []
+        total = len(paths)
+        try:
+            PromptServer.instance.send_sync(
+                "comfyui.loadimageextended.status",
+                {"phase": "start", "total": total, "provider": cloud_provider if load_from_cloud else None}
+            )
+        except Exception:
+            pass
 
         if load_from_cloud:
             Uploader = get_uploader(cloud_provider)
             try:
                 if hasattr(Uploader, "download_many"):
-                    results = Uploader.download_many(paths, bucket_link, cloud_folder_path, cloud_api_key)
+                    def _progress_cb(info: dict):
+                        try:
+                            PromptServer.instance.send_sync(
+                                "comfyui.loadimageextended.status",
+                                {"phase": "progress", "where": "cloud", "current": (info.get("index", 0) + 1), "total": total, "filename": info.get("path"), "provider": cloud_provider}
+                            )
+                        except Exception:
+                            pass
+                    results = Uploader.download_many(paths, bucket_link, cloud_folder_path, cloud_api_key, _progress_cb)
                 else:
                     results = [{"filename": name, "content": Uploader.download(name, bucket_link, cloud_folder_path, cloud_api_key)} for name in paths]
             except Exception as e:
+                try:
+                    PromptServer.instance.send_sync(
+                        "comfyui.loadimageextended.status",
+                        {"phase": "error", "message": str(e)}
+                    )
+                except Exception:
+                    pass
                 raise RuntimeError(f"Cloud download failed: {e}")
 
             for res in results:
@@ -141,6 +165,13 @@ class LoadImageExtended:
                 img_t, mask_t = self._tensor_and_mask_from_pil(pil)
                 tensors.append(img_t)
                 masks.append(mask_t)
+                try:
+                    PromptServer.instance.send_sync(
+                        "comfyui.loadimageextended.status",
+                        {"phase": "progress", "where": "cloud", "current": len(tensors), "total": total, "filename": res.get("filename"), "provider": cloud_provider}
+                    )
+                except Exception:
+                    pass
         else:
             input_dir = folder_paths.get_input_directory()
             for rel in paths:
@@ -151,6 +182,13 @@ class LoadImageExtended:
                 img_t, mask_t = self._tensor_and_mask_from_pil(img)
                 tensors.append(img_t)
                 masks.append(mask_t)
+                try:
+                    PromptServer.instance.send_sync(
+                        "comfyui.loadimageextended.status",
+                        {"phase": "progress", "where": "local", "current": len(tensors), "total": total, "filename": rel}
+                    )
+                except Exception:
+                    pass
 
         # Attempt to batch concatenate if shapes match
         def can_stack(ts):
@@ -164,6 +202,13 @@ class LoadImageExtended:
             out_img = tensors[0]
             out_mask = masks[0]
 
+        try:
+            PromptServer.instance.send_sync(
+                "comfyui.loadimageextended.status",
+                {"phase": "complete", "count": len(tensors), "provider": cloud_provider if load_from_cloud else None}
+            )
+        except Exception:
+            pass
         return (out_img, out_mask)
 
     @classmethod

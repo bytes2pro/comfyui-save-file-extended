@@ -85,17 +85,22 @@ class Uploader:
         }
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
         endpoint_url, bucket, _ = _parse_endpoint_bucket_key(bucket_link, cloud_folder_path, "dummy")
         s3 = Uploader._create_client(api_key, endpoint_url)
         results: list[Dict[str, Any]] = []
-        for item in items:
+        for idx, item in enumerate(items):
             filename = item["filename"]
             body = item["content"]
             _, bucket_name, key = _parse_endpoint_bucket_key(bucket_link, cloud_folder_path, filename)
             s3.put_object(Bucket=bucket_name, Key=key, Body=body, ContentType="image/png")
             url = f"{endpoint_url}/{bucket_name}/{key}"
             results.append({"provider": "S3-Compatible", "bucket": bucket_name, "path": key, "url": url})
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": filename, "path": key})
+                except Exception:
+                    pass
         return results
 
     @staticmethod
@@ -106,13 +111,19 @@ class Uploader:
         return obj["Body"].read()
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
         endpoint_url, _, _ = _parse_endpoint_bucket_key(bucket_link, cloud_folder_path, "dummy")
         s3 = Uploader._create_client(api_key, endpoint_url)
 
         results: list[Dict[str, Any]] = []
-        for name in keys:
+        for idx, name in enumerate(keys):
             _, bucket, key = _parse_endpoint_bucket_key(bucket_link, cloud_folder_path, name)
             obj = s3.get_object(Bucket=bucket, Key=key)
-            results.append({"filename": name, "content": obj["Body"].read()})
+            content = obj["Body"].read()
+            results.append({"filename": name, "content": content})
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": name, "path": key})
+                except Exception:
+                    pass
         return results

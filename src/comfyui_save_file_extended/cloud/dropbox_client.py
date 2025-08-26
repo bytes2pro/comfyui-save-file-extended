@@ -50,7 +50,7 @@ class Uploader:
         }
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
         dbx = Uploader._get_dbx(api_key)
 
         # Ensure folder path exists once
@@ -66,12 +66,17 @@ class Uploader:
                     pass
 
         results: list[Dict[str, Any]] = []
-        for item in items:
+        for idx, item in enumerate(items):
             filename = item["filename"]
             body = item["content"]
             path = _resolve_path(bucket_link, cloud_folder_path, filename)
             dbx.files_upload(body, path, mode=dropbox.files.WriteMode.overwrite, mute=True)
             results.append({"provider": "Dropbox", "bucket": "", "path": path, "url": None})
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": filename, "path": path})
+                except Exception:
+                    pass
         return results
 
     @staticmethod
@@ -82,11 +87,16 @@ class Uploader:
         return resp.content
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
         dbx = Uploader._get_dbx(api_key)
         results: list[Dict[str, Any]] = []
-        for name in keys:
+        for idx, name in enumerate(keys):
             path = _resolve_path(bucket_link, cloud_folder_path, name)
             metadata, resp = dbx.files_download(path)
             results.append({"filename": name, "content": resp.content})
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": name, "path": path})
+                except Exception:
+                    pass
         return results
