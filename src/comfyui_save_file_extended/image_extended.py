@@ -1,47 +1,19 @@
 from __future__ import annotations
-import torch
 
-
-import os
-import sys
 import json
-import hashlib
-import inspect
-import traceback
-import math
-import time
+import os
 import random
-import logging
-
-from PIL import Image, ImageOps, ImageSequence
-from PIL.PngImagePlugin import PngInfo
+import sys
 
 import numpy as np
-import safetensors.torch
+from PIL import Image
+from PIL.PngImagePlugin import PngInfo
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "comfy"))
 
-import comfy.diffusers_load
-import comfy.samplers
-import comfy.sample
-import comfy.sd
-import comfy.utils
-import comfy.controlnet
-from comfy.comfy_types import IO, ComfyNodeABC, InputTypeDict, FileLocator
-from comfy_api.internal import register_versions, ComfyAPIWithVersion
-from comfy_api.version_list import supported_versions
-from comfy_api.latest import io, ComfyExtension
-
-import comfy.clip_vision
-
-import comfy.model_management
+import folder_paths
 from comfy.cli_args import args
 
-import importlib
-
-import folder_paths
-import latent_preview
-import node_helpers
 
 class SaveImageExtended:
     def __init__(self):
@@ -68,7 +40,7 @@ class SaveImageExtended:
     OUTPUT_NODE = True
 
     CATEGORY = "image"
-    DESCRIPTION = "Saves the input images to your ComfyUI output directory."
+    DESCRIPTION = "Saves the input images to your chosen cloud provider or local ComfyUI output directory."
 
     def save_images_extended(self, images, filename_prefix="ComfyUI", prompt=None, extra_pnginfo=None):
         filename_prefix += self.prefix_append
