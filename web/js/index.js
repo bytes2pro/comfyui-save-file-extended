@@ -9,7 +9,6 @@ import { beforeRegisterNodeDef as uiBeforeRegisterNodeDef } from "./ui_enhance.j
         const app = window.app;
         if (!app) return false;
         if (window.__CSE_REGISTERED__) return true;
-        window.__CSE_REGISTERED__ = true;
 
         app.registerExtension({
             name: "comfyui.savefileextended",
@@ -20,6 +19,8 @@ import { beforeRegisterNodeDef as uiBeforeRegisterNodeDef } from "./ui_enhance.j
                 await uiBeforeRegisterNodeDef(nodeType, nodeData, app);
             },
         });
+
+        window.__CSE_REGISTERED__ = true;
         return true;
     };
 
