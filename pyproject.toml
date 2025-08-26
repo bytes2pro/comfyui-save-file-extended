@@ -7,7 +7,8 @@ name = "comfyui_save_file_extended"
 version = "0.0.1"
 description = "A collection of custom nodes for ComfyUI that offers an extension to the existing Save and Preview Image/Video nodes allowing directly adding and previewing the files from your preferred cloud storage providers (S3/DropBox/Google Drive/...)"
 authors = [
-  {name = "RUiNtheExtinct", email = "deepkarma001@gmail.com"}
+  {name = "RUiNtheExtinct", email = "deepkarma001@gmail.com"},
+  {name = "Prem Sai G", email = "premsaig1605@gmail.com"},
 ]
 readme = "README.md"
 license = {text = "MIT license"}
