@@ -121,9 +121,6 @@ class SaveImageExtended:
                 return "Cloud: 'bucket_link' is required."
             if not (cloud_api_key and cloud_api_key.strip()):
                 return "Cloud: 'cloud_api_key' is required."
-        if save_to_local:
-            if not (local_folder_path and local_folder_path.strip()):
-                return "Local: 'local_folder_path' is required."
         return True
 
     def save_images_extended(self, 
@@ -144,8 +141,8 @@ class SaveImageExtended:
         # Resolve local save directory and UI subfolder
         local_save_dir = full_output_folder
         ui_subfolder = subfolder
-        if save_to_local and local_folder_path:
-            local_save_dir = os.path.join(full_output_folder, local_folder_path)
+        if save_to_local:
+            local_save_dir = os.path.join(full_output_folder, local_folder_path or "")
             try:
                 os.makedirs(local_save_dir, exist_ok=True)
             except Exception:
