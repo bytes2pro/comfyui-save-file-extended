@@ -6,8 +6,10 @@ from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
 
 import boto3
+from ._logging import log_exceptions
 
 
+@log_exceptions
 def _parse_credentials(api_key: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
     Parse credentials from api_key which can be:
@@ -38,6 +40,7 @@ def _parse_credentials(api_key: str) -> Tuple[Optional[str], Optional[str], Opti
     return access_key, secret_key, region
 
 
+@log_exceptions
 def _parse_endpoint_bucket_key(bucket_link: str, cloud_folder_path: str, filename: str) -> Tuple[str, str, str]:
     """
     Accepts bucket_link like:
@@ -46,7 +49,7 @@ def _parse_endpoint_bucket_key(bucket_link: str, cloud_folder_path: str, filenam
     """
     parsed = urlparse(bucket_link)
     if parsed.scheme not in ("http", "https"):
-        raise ValueError("S3-Compatible requires an http(s) endpoint URL, e.g. https://endpoint/bucket")
+        raise ValueError("[SaveFileExtended:s3_compatible:_parse_endpoint_bucket_key] S3-Compatible requires an http(s) endpoint URL, e.g. https://endpoint/bucket")
     path_parts = parsed.path.lstrip("/").split("/", 1)
     bucket = path_parts[0]
     base_prefix = path_parts[1] if len(path_parts) > 1 else ""
@@ -61,6 +64,7 @@ def _parse_endpoint_bucket_key(bucket_link: str, cloud_folder_path: str, filenam
 
 class Uploader:
     @staticmethod
+    @log_exceptions
     def _create_client(api_key: str, endpoint_url: str):
         access_key, secret_key, region = _parse_credentials(api_key)
         client_kwargs: Dict[str, Any] = {"endpoint_url": endpoint_url}
@@ -72,6 +76,7 @@ class Uploader:
         return boto3.client("s3", **client_kwargs)
     
     @staticmethod
+    @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
         endpoint_url, bucket, key = _parse_endpoint_bucket_key(bucket_link, cloud_folder_path, filename)
         s3 = Uploader._create_client(api_key, endpoint_url)
@@ -86,6 +91,7 @@ class Uploader:
         }
 
     @staticmethod
+    @log_exceptions
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         endpoint_url, bucket, _ = _parse_endpoint_bucket_key(bucket_link, cloud_folder_path, "dummy")
         s3 = Uploader._create_client(api_key, endpoint_url)
@@ -115,6 +121,7 @@ class Uploader:
         return results
 
     @staticmethod
+    @log_exceptions
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
         endpoint_url, bucket, key = _parse_endpoint_bucket_key(bucket_link, cloud_folder_path, key_or_filename)
         s3 = Uploader._create_client(api_key, endpoint_url)
@@ -122,6 +129,7 @@ class Uploader:
         return obj["Body"].read()
 
     @staticmethod
+    @log_exceptions
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         endpoint_url, _, _ = _parse_endpoint_bucket_key(bucket_link, cloud_folder_path, "dummy")
         s3 = Uploader._create_client(api_key, endpoint_url)

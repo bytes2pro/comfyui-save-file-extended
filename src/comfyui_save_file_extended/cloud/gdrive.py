@@ -5,8 +5,10 @@ from typing import Any, Dict
 from urllib.parse import urlparse
 
 import requests
+from ._logging import log_exceptions
 
 
+@log_exceptions
 def _resolve_parent_id_from_path(api_token: str, path: str) -> str:
     """
     Resolve or create folders by path under My Drive and return the parent folder ID.
@@ -32,6 +34,7 @@ def _resolve_parent_id_from_path(api_token: str, path: str) -> str:
     return parent_id
 
 
+@log_exceptions
 def _get_access_token(api_key: str) -> str:
     """
     Accepts either a raw access token string or a JSON with fields:
@@ -65,6 +68,7 @@ def _get_access_token(api_key: str) -> str:
     return key
 
 
+@log_exceptions
 def _get_headers(api_key: str) -> Dict[str, str]:
     access_token = _get_access_token(api_key)
     return {"Authorization": f"Bearer {access_token}"}
@@ -72,9 +76,10 @@ def _get_headers(api_key: str) -> Dict[str, str]:
 
 class Uploader:
     @staticmethod
+    @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
         if not api_key:
-            raise ValueError("Google Drive api_key must be an OAuth2 access token with drive scope")
+            raise ValueError("[SaveFileExtended:gdrive:upload] Google Drive api_key must be an OAuth2 access token with drive scope")
 
         # bucket_link can be a folder path or a folder id prefixed with drive://id/<optional-subpath>
         parsed = urlparse(bucket_link)
@@ -119,9 +124,10 @@ class Uploader:
 
 
     @staticmethod
+    @log_exceptions
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         if not api_key:
-            raise ValueError("Google Drive api_key must be an OAuth2 access token with drive scope")
+            raise ValueError("[SaveFileExtended:gdrive:upload_many] Google Drive api_key must be an OAuth2 access token with drive scope")
 
         parsed = urlparse(bucket_link)
         base_path = parsed.path if parsed.scheme != "drive" else ""
@@ -191,6 +197,7 @@ class Uploader:
         return results
 
     @staticmethod
+    @log_exceptions
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
         access_token = _get_access_token(api_key)
         parsed = urlparse(bucket_link)
@@ -221,6 +228,7 @@ class Uploader:
         return resp.content
 
     @staticmethod
+    @log_exceptions
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         access_token = _get_access_token(api_key)
         parsed = urlparse(bucket_link)

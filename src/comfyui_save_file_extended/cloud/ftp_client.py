@@ -5,11 +5,14 @@ from ftplib import FTP
 from typing import Any, Dict
 from urllib.parse import urlparse
 
+from ._logging import log_exceptions
 
+
+@log_exceptions
 def _parse_ftp(bucket_link: str, cloud_folder_path: str):
     parsed = urlparse(bucket_link)
     if parsed.scheme != "ftp":
-        raise ValueError("FTP bucket_link must start with ftp://user:pass@host[:port]/basepath")
+        raise ValueError("[SaveFileExtended:ftp_client:_parse_ftp] FTP bucket_link must start with ftp://user:pass@host[:port]/basepath")
     host = parsed.hostname
     port = parsed.port or 21
     user = parsed.username or "anonymous"
@@ -22,6 +25,7 @@ def _parse_ftp(bucket_link: str, cloud_folder_path: str):
 
 class Uploader:
     @staticmethod
+    @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
         host, port, user, password, prefix = _parse_ftp(bucket_link, cloud_folder_path)
         remote_path = f"/{prefix + '/' if prefix else ''}{filename}"
@@ -49,6 +53,7 @@ class Uploader:
         }
 
     @staticmethod
+    @log_exceptions
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         host, port, user, password, prefix = _parse_ftp(bucket_link, cloud_folder_path)
 
@@ -91,6 +96,7 @@ class Uploader:
         return results
 
     @staticmethod
+    @log_exceptions
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
         host, port, user, password, prefix = _parse_ftp(bucket_link, cloud_folder_path)
         remote_path = f"/{prefix + '/' if prefix else ''}{key_or_filename}"
@@ -107,6 +113,7 @@ class Uploader:
         return bio.getvalue()
 
     @staticmethod
+    @log_exceptions
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         host, port, user, password, prefix = _parse_ftp(bucket_link, cloud_folder_path)
 

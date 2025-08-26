@@ -35,6 +35,73 @@ Save images locally and/or upload them to a cloud provider in one batch. Shows r
 - FTP → bucket_link: `ftp://user:pass@host[:port]/basepath` | cloud_api_key: not used.
 - Supabase → bucket_link: `<bucket_name>` | cloud_api_key: JSON `{url, key}` or `url|key`.
 
+## Getting provider values (URLs, bucket links, keys)
+
+### AWS S3
+- Bucket link: `s3://<bucket>[/prefix]`
+- API key (cloud_api_key): either JSON `{"access_key":"...","secret_key":"...","region":"us-east-1"}` or `ACCESS:SECRET[:REGION]`
+- Where to find: AWS Console → IAM (create access key) and S3 (bucket name)
+
+### S3-Compatible (MinIO, Cloudflare R2, etc.)
+- Bucket link: `https://<endpoint>/<bucket>[/prefix]` (must be virtual-host or path-style URL supported by your provider)
+- API key: same as S3 (access/secret and optional region)
+- Where to find: your provider dashboard (endpoint URL, bucket name, access keys)
+
+### Google Cloud Storage (GCS)
+- Bucket link: `gs://<bucket>[/prefix]` or `<bucket>[/prefix]`
+- API key: service-account JSON (paste as a JSON string) or a file path to the JSON
+- Where to find: Google Cloud Console → IAM & Admin → Service Accounts (create key), Storage → Buckets
+
+### Azure Blob Storage
+- Bucket link: either a connection string OR `https://<account>.blob.core.windows.net/<container>[/prefix]`
+- API key: use a connection string, or account key/SAS when using URL form
+- Where to find: Azure Portal → Storage accounts → Access keys / Shared access signature; Containers under your account
+
+### Backblaze B2
+- Bucket link: `b2://<bucket>[/prefix]` or `<bucket>[/prefix]`
+- API key: `KEY_ID:APP_KEY`
+- Where to find: Backblaze → App Keys and Buckets
+
+### Google Drive
+- Bucket link: `/MyFolder/Sub` OR `drive://<folderId>/<optional/subpath>`
+- API key: OAuth2 JSON `{"client_id","client_secret","refresh_token"}`; optional `access_token`
+- Where to find: Google Cloud Console → OAuth consent + OAuth credentials; Drive folder ID from URL
+
+### Dropbox
+- Bucket link: `/base/path`
+- API key: Dropbox access token
+- Where to find: Dropbox App Console → Scoped App → Generate access token
+
+### OneDrive
+- Bucket link: `/base/path`
+- API key: OAuth2 JSON `{"client_id","client_secret","refresh_token","tenant":"common|consumers|organizations","redirect_uri"?}`; or an access token
+- Where to find: Azure App registrations (Microsoft identity platform); OneDrive path from web UI
+
+### FTP
+- Bucket link: `ftp://user:pass@host[:port]/basepath`
+- API key: not used
+
+### Supabase Storage
+- Bucket link: `<bucket_name>`
+- API key: `{"url":"https://<project>.supabase.co","key":"<JWT>"}` or `https://<project>.supabase.co|<JWT>`
+- Keys: Project Settings → API → Project URL and anon/service_role keys
+- Writes with anon require storage RLS policies. Easiest is to use the service_role key on a trusted server. Example policies to allow anon:
+
+```sql
+create policy "Allow anon insert"
+on storage.objects for insert to anon
+with check (bucket_id = '<bucket_name>');
+
+create policy "Allow anon update"
+on storage.objects for update to anon
+using (bucket_id = '<bucket_name>')
+with check (bucket_id = '<bucket_name>');
+
+create policy "Allow anon select"
+on storage.objects for select to anon
+using (bucket_id = '<bucket_name>');
+```
+
 ## Token refresh (optional)
 - Google Drive cloud_api_key JSON: `{client_id, client_secret, refresh_token}` (optional `access_token`).
 - OneDrive cloud_api_key JSON: `{client_id, client_secret, refresh_token, tenant='common'|'consumers'|'organizations', redirect_uri?}`.

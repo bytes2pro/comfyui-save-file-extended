@@ -5,7 +5,10 @@ from urllib.parse import urlparse
 
 import dropbox
 
+from ._logging import log_exceptions
 
+
+@log_exceptions
 def _resolve_path(bucket_link: str, cloud_folder_path: str, filename: str) -> str:
     parsed = urlparse(bucket_link)
     base_path = parsed.path if parsed.scheme else bucket_link
@@ -17,12 +20,14 @@ def _resolve_path(bucket_link: str, cloud_folder_path: str, filename: str) -> st
 
 class Uploader:
     @staticmethod
+    @log_exceptions
     def _get_dbx(api_key: str):
         if not api_key:
-            raise ValueError("Dropbox api_key (access token) is required")
+            raise ValueError("[SaveFileExtended:dropbox_client:_get_dbx] Dropbox api_key (access token) is required")
         return dropbox.Dropbox(api_key.strip())
     
     @staticmethod
+    @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
         dbx = Uploader._get_dbx(api_key)
         # Ensure folder path exists
@@ -50,6 +55,7 @@ class Uploader:
         }
 
     @staticmethod
+    @log_exceptions
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         dbx = Uploader._get_dbx(api_key)
 
@@ -104,6 +110,7 @@ class Uploader:
         return results
 
     @staticmethod
+    @log_exceptions
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
         dbx = Uploader._get_dbx(api_key)
         path = _resolve_path(bucket_link, cloud_folder_path, key_or_filename)
@@ -111,6 +118,7 @@ class Uploader:
         return resp.content
 
     @staticmethod
+    @log_exceptions
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         dbx = Uploader._get_dbx(api_key)
         results: list[Dict[str, Any]] = []

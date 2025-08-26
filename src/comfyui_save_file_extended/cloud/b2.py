@@ -6,15 +6,19 @@ from urllib.parse import urlparse
 
 from b2sdk.v2 import B2Api, InMemoryAccountInfo
 
+from ._logging import log_exceptions
 
+
+@log_exceptions
 def _parse_creds(api_key: str) -> Tuple[str, str]:
     # Expect "APPLICATION_KEY_ID:APPLICATION_KEY"
     if ":" not in api_key:
-        raise ValueError("Backblaze B2 api_key must be 'keyId:key'")
+        raise ValueError("[SaveFileExtended:b2:_parse_creds] Backblaze B2 api_key must be 'keyId:key'")
     key_id, app_key = api_key.split(":", 1)
     return key_id.strip(), app_key.strip()
 
 
+@log_exceptions
 def _parse_bucket_and_key(bucket_link: str, cloud_folder_path: str, filename: str) -> Tuple[str, str]:
     parsed = urlparse(bucket_link)
     if parsed.scheme == "b2":
@@ -32,6 +36,7 @@ def _parse_bucket_and_key(bucket_link: str, cloud_folder_path: str, filename: st
 
 class Uploader:
     @staticmethod
+    @log_exceptions
     def _create_api(api_key: str):
         key_id, app_key = _parse_creds(api_key)
         info = InMemoryAccountInfo()
@@ -40,6 +45,7 @@ class Uploader:
         return b2_api
     
     @staticmethod
+    @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
         bucket_name, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, filename)
         b2_api = Uploader._create_api(api_key)
@@ -56,6 +62,7 @@ class Uploader:
         }
 
     @staticmethod
+    @log_exceptions
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         bucket_name, _ = _parse_bucket_and_key(bucket_link, cloud_folder_path, "dummy")
         b2_api = Uploader._create_api(api_key)
@@ -83,6 +90,7 @@ class Uploader:
         return results
 
     @staticmethod
+    @log_exceptions
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
         bucket_name, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, key_or_filename)
         b2_api = Uploader._create_api(api_key)
@@ -92,6 +100,7 @@ class Uploader:
         return bio.getvalue()
 
     @staticmethod
+    @log_exceptions
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         bucket_name, _ = _parse_bucket_and_key(bucket_link, cloud_folder_path, "dummy")
         b2_api = Uploader._create_api(api_key)

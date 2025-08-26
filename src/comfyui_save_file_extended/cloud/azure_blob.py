@@ -6,7 +6,10 @@ from urllib.parse import urlparse
 
 from azure.storage.blob import BlobServiceClient, ContentSettings
 
+from ._logging import log_exceptions
 
+
+@log_exceptions
 def _parse_container_and_blob(bucket_link: str, cloud_folder_path: str, filename: str) -> Tuple[str, str, str]:
     """
     Accept:
@@ -34,6 +37,7 @@ def _parse_container_and_blob(bucket_link: str, cloud_folder_path: str, filename
 
 class Uploader:
     @staticmethod
+    @log_exceptions
     def _create_service_client(bucket_link: str, api_key: str, account_url: str) -> Any:
         if "DefaultEndpointsProtocol=" in bucket_link:
             return BlobServiceClient.from_connection_string(bucket_link)
@@ -41,10 +45,11 @@ class Uploader:
             return BlobServiceClient.from_connection_string(api_key.strip())
         else:
             if not account_url:
-                raise ValueError("Azure Blob requires an account URL or connection string")
+                raise ValueError("[SaveFileExtended:azure_blob] Azure Blob requires an account URL or connection string")
             return BlobServiceClient(account_url=account_url, credential=api_key if api_key else None)
     
     @staticmethod
+    @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
         account_url, container, blob_name = _parse_container_and_blob(bucket_link, cloud_folder_path, filename)
 
@@ -69,6 +74,7 @@ class Uploader:
         }
 
     @staticmethod
+    @log_exceptions
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         account_url, container, _ = _parse_container_and_blob(bucket_link, cloud_folder_path, "dummy")
 
@@ -114,6 +120,7 @@ class Uploader:
         return results
 
     @staticmethod
+    @log_exceptions
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
         account_url, container, blob_name = _parse_container_and_blob(bucket_link, cloud_folder_path, key_or_filename)
 
@@ -124,6 +131,7 @@ class Uploader:
         return downloader.readall()
 
     @staticmethod
+    @log_exceptions
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]: # type: ignore
         account_url, container, _ = _parse_container_and_blob(bucket_link, cloud_folder_path, "dummy")
 
@@ -133,7 +141,7 @@ class Uploader:
             service_client = BlobServiceClient.from_connection_string(api_key.strip())
         else:
             if not account_url:
-                raise ValueError("Azure Blob requires an account URL or connection string")
+                raise ValueError("[SaveFileExtended:azure_blob] Azure Blob requires an account URL or connection string")
             service_client = BlobServiceClient(account_url=account_url, credential=api_key if api_key else None)
 
         results: list[Dict[str, Any]] = []

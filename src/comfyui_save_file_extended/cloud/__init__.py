@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib import import_module
 from typing import Dict
 
 
@@ -26,8 +27,9 @@ def get_uploader(provider_name: str):
 
     dotted = providers.get(provider_name)
     if not dotted:
-        raise ValueError(f"Unsupported cloud provider: {provider_name}")
+        raise ValueError(f"[SaveFileExtended:get_uploader] Unsupported cloud provider: {provider_name}")
 
     module_path, class_name = dotted.split(":")
-    module = __import__(module_path, fromlist=[class_name])
+    # Load relative module under this package (e.g., ".s3" -> comfyui_save_file_extended.cloud.s3)
+    module = import_module(module_path, package=__name__)
     return getattr(module, class_name)

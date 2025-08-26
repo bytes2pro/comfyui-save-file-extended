@@ -7,8 +7,10 @@ from urllib.parse import urlparse
 
 from google.cloud import storage
 from google.oauth2 import service_account
+from ._logging import log_exceptions
 
 
+@log_exceptions
 def _parse_bucket_and_key(bucket_link: str, cloud_folder_path: str, filename: str) -> Tuple[str, str]:
     parsed = urlparse(bucket_link)
     if parsed.scheme == "gs":
@@ -26,6 +28,7 @@ def _parse_bucket_and_key(bucket_link: str, cloud_folder_path: str, filename: st
 
 class Uploader:
     @staticmethod
+    @log_exceptions
     def _create_client(api_key: str):
         if api_key and api_key.strip().startswith("{"):
             info = json.loads(api_key)
@@ -38,6 +41,7 @@ class Uploader:
             return storage.Client()
     
     @staticmethod
+    @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
         client = Uploader._create_client(api_key)
 
@@ -55,6 +59,7 @@ class Uploader:
         }
 
     @staticmethod
+    @log_exceptions
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         client = Uploader._create_client(api_key)
 
@@ -92,6 +97,7 @@ class Uploader:
         return results
 
     @staticmethod
+    @log_exceptions
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
         client = Uploader._create_client(api_key)
 
@@ -101,6 +107,7 @@ class Uploader:
         return blob.download_as_bytes()
 
     @staticmethod
+    @log_exceptions
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         client = Uploader._create_client(api_key)
 

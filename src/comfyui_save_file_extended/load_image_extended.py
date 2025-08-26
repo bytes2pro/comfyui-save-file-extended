@@ -44,12 +44,18 @@ class LoadImageExtended:
     """
     @classmethod
     def INPUT_TYPES(s):
+        # Build local file list (like core LoadImage) for convenience when not using cloud
+        input_dir = folder_paths.get_input_directory()
+        files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
+        files = folder_paths.filter_files_content_types(files, ["image"])
         return {
             "required": {
                 "load_from_cloud": ("BOOLEAN", {"default": False, "socketless": True, "label_on": "Cloud", "label_off": "Local", "tooltip": "Choose source: cloud provider or local input directory."}),
                 "file_paths": ("STRING", {"multiline": True, "placeholder": "One filename or key per line", "tooltip": "Files to load. For local: relative to the ComfyUI input directory or subfolders. For cloud: keys/paths relative to the chosen destination prefix."}),
             },
             "optional": {
+                # Local convenience picker (used when load_from_cloud is False)
+                "local_file": (sorted(files), {"image_upload": True, "tooltip": "Pick a file from the ComfyUI input directory or upload a new one."}),
                 # Cloud configuration (used when load_from_cloud is True)
                 "cloud_provider": ([
                     "AWS S3",
@@ -119,10 +125,13 @@ class LoadImageExtended:
             output_mask = output_masks[0]
         return output_image, output_mask
 
-    def load_images_extended(self, load_from_cloud: bool, file_paths: str, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key=""):
+    def load_images_extended(self, load_from_cloud: bool, file_paths: str, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key="", local_file=None):
         paths = [p.strip() for p in file_paths.splitlines() if p.strip()]
+        # If not using cloud and a local file is selected, use it when file_paths is empty
+        if not load_from_cloud and not paths and local_file:
+            paths = [local_file]
         if not paths:
-            raise ValueError("Provide at least one file path")
+            raise ValueError("Provide at least one file path or select a local file")
 
         tensors = []
         masks = []
@@ -236,7 +245,8 @@ class LoadImageExtended:
 
     @classmethod
     def VALIDATE_INPUTS(s, load_from_cloud, file_paths, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key=""):
-        if not file_paths or not file_paths.strip():
+        # file_paths can be empty if a local_file is selected at runtime; validation here focuses on cloud fields
+        if (not file_paths or not file_paths.strip()) and load_from_cloud:
             return "Provide one or more file paths (one per line)."
         if load_from_cloud:
             if not (cloud_provider and str(cloud_provider).strip()):

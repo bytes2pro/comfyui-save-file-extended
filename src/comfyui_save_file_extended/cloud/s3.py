@@ -7,7 +7,10 @@ from urllib.parse import urlparse
 
 import boto3
 
+from ._logging import log_exceptions
 
+
+@log_exceptions
 def _parse_credentials(api_key: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
     Parse credentials from api_key which can be:
@@ -38,6 +41,7 @@ def _parse_credentials(api_key: str) -> Tuple[Optional[str], Optional[str], Opti
     return access_key, secret_key, region
 
 
+@log_exceptions
 def _parse_bucket_and_key(bucket_link: str, cloud_folder_path: str, filename: str) -> Tuple[str, str]:
     """
     Accepts bucket_link like:
@@ -62,6 +66,7 @@ def _parse_bucket_and_key(bucket_link: str, cloud_folder_path: str, filename: st
 
 class Uploader:
     @staticmethod
+    @log_exceptions
     def _create_client(api_key: str):
         access_key, secret_key, region = _parse_credentials(api_key)
         client_kwargs: Dict[str, Any] = {}
@@ -73,6 +78,7 @@ class Uploader:
         return boto3.client("s3", **client_kwargs)
     
     @staticmethod
+    @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
         bucket, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, filename)
         s3 = Uploader._create_client(api_key)
@@ -87,6 +93,7 @@ class Uploader:
         }
 
     @staticmethod
+    @log_exceptions
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         s3 = Uploader._create_client(api_key)
 
@@ -116,6 +123,7 @@ class Uploader:
         return results
 
     @staticmethod
+    @log_exceptions
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
         bucket, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, key_or_filename)
         s3 = Uploader._create_client(api_key)
@@ -123,6 +131,7 @@ class Uploader:
         return obj["Body"].read()
 
     @staticmethod
+    @log_exceptions
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         s3 = Uploader._create_client(api_key)
 

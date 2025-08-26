@@ -5,8 +5,10 @@ from typing import Any, Dict
 from urllib.parse import urlparse
 
 import requests
+from ._logging import log_exceptions
 
 
+@log_exceptions
 def _build_path(bucket_link: str, cloud_folder_path: str, filename: str) -> str:
     base_path = urlparse(bucket_link).path or bucket_link
     parts = [p for p in [base_path, cloud_folder_path] if p]
@@ -15,6 +17,7 @@ def _build_path(bucket_link: str, cloud_folder_path: str, filename: str) -> str:
     return path
 
 
+@log_exceptions
 def _ensure_onedrive_parent_id(access_token: str, path_prefix: str) -> str:
     headers = {"Authorization": f"Bearer {access_token}"}
 
@@ -45,6 +48,7 @@ def _ensure_onedrive_parent_id(access_token: str, path_prefix: str) -> str:
     return parent_id
 
 
+@log_exceptions
 def _get_access_token(api_key: str) -> str:
     """
     Accepts either a raw access token string or a JSON with fields:
@@ -81,6 +85,7 @@ def _get_access_token(api_key: str) -> str:
     return key
 
 
+@log_exceptions
 def _get_headers(api_key: str) -> Dict[str, str]:
     token = _get_access_token(api_key)
     return {"Authorization": f"Bearer {token}"}
@@ -88,9 +93,10 @@ def _get_headers(api_key: str) -> Dict[str, str]:
 
 class Uploader:
     @staticmethod
+    @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
         if not api_key:
-            raise ValueError("OneDrive api_key must be a valid OAuth 2.0 access token")
+            raise ValueError("[SaveFileExtended:onedrive:upload] OneDrive api_key must be a valid OAuth 2.0 access token")
 
         path = _build_path(bucket_link, cloud_folder_path, filename)
         path_prefix = "/".join(path.strip("/").split("/")[:-1])
@@ -115,9 +121,10 @@ class Uploader:
         }
 
     @staticmethod
+    @log_exceptions
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         if not api_key:
-            raise ValueError("OneDrive api_key must be a valid OAuth 2.0 access token")
+            raise ValueError("[SaveFileExtended:onedrive:upload_many] OneDrive api_key must be a valid OAuth 2.0 access token")
 
         # Build path prefix from inputs
         example_path = _build_path(bucket_link, cloud_folder_path, "dummy")
@@ -169,6 +176,7 @@ class Uploader:
         return results
 
     @staticmethod
+    @log_exceptions
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
         access_token = _get_access_token(api_key)
         path = _build_path(bucket_link, cloud_folder_path, key_or_filename)
@@ -179,6 +187,7 @@ class Uploader:
         return resp.content
 
     @staticmethod
+    @log_exceptions
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         access_token = _get_access_token(api_key)
         headers = _get_headers(api_key)

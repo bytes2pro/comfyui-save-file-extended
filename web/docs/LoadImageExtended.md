@@ -16,6 +16,7 @@ Load images from your local input directory or directly from supported cloud pro
 
 -   load_from_cloud (BOOLEAN): Toggle between local and cloud sources.
 -   file_paths (STRING, multiline): One path per line. For local, paths are relative to the input directory; for cloud, keys are resolved under the configured prefix.
+-   local_file (DROPDOWN): When Cloud is OFF, you can pick a local image (with upload support) just like the core LoadImage node.
 -   cloud_provider (CHOICE): One of AWS S3, S3-Compatible, GCS, Azure Blob, Backblaze B2, Google Drive, Dropbox, OneDrive, FTP, Supabase.
 -   bucket_link (STRING): Provider-specific origin identifier (see examples below).
 -   cloud_folder_path (STRING): Optional folder/key prefix. Keys in `file_paths` will be resolved under this prefix.
@@ -33,6 +34,63 @@ Load images from your local input directory or directly from supported cloud pro
 -   OneDrive → bucket_link: `/base/path`.
 -   FTP → bucket_link: `ftp://user:pass@host[:port]/basepath`.
 -   Supabase → bucket_link: `<bucket_name>`.
+
+## Getting provider values (URLs, bucket links, keys)
+
+### Local (when Cloud is OFF)
+
+-   Use the Local File dropdown to pick from the ComfyUI input directory, or upload directly. You can also type multiple names in file_paths.
+
+### AWS S3
+
+-   Bucket link: `s3://<bucket>[/prefix]`
+-   API key: JSON `{"access_key","secret_key","region"}` or `ACCESS:SECRET[:REGION]`
+
+### S3-Compatible (MinIO, Cloudflare R2, etc.)
+
+-   Bucket link: `https://<endpoint>/<bucket>[/prefix]`
+-   API key: same as S3
+
+### Google Cloud Storage (GCS)
+
+-   Bucket link: `gs://<bucket>[/prefix]` or `<bucket>[/prefix]`
+-   API key: service-account JSON string or path to the JSON file
+
+### Azure Blob Storage
+
+-   Bucket link: connection string OR `https://<account>.blob.core.windows.net/<container>[/prefix]`
+-   API key: connection string or account key/SAS when using URL
+
+### Backblaze B2
+
+-   Bucket link: `b2://<bucket>[/prefix]` or `<bucket>[/prefix]`
+-   API key: `KEY_ID:APP_KEY`
+
+### Google Drive
+
+-   Bucket link: `/MyFolder/Sub` OR `drive://<folderId>/<optional/subpath>`
+-   API key: OAuth2 JSON `{"client_id","client_secret","refresh_token"}` (optional `access_token`)
+
+### Dropbox
+
+-   Bucket link: `/base/path`
+-   API key: Dropbox access token
+
+### OneDrive
+
+-   Bucket link: `/base/path`
+-   API key: OAuth2 JSON `{"client_id","client_secret","refresh_token","tenant":"common|consumers|organizations","redirect_uri"?}` or an access token
+
+### FTP
+
+-   Bucket link: `ftp://user:pass@host[:port]/basepath`
+-   API key: not used
+
+### Supabase Storage
+
+-   Bucket link: `<bucket_name>`
+-   API key: `{"url":"https://<project>.supabase.co","key":"<JWT>"}` or `https://<project>.supabase.co|<JWT>`
+-   For writes (in SaveImageExtended) anon keys require RLS policies; downloads may require a SELECT policy or a public bucket.
 
 ## Token refresh (optional)
 
