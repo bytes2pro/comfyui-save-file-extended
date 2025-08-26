@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from uuid import uuid4
 
 import numpy as np
 from PIL import Image
@@ -176,7 +177,7 @@ class SaveImageExtended:
                         metadata.add_text(x, json.dumps(extra_pnginfo[x]))
 
             filename_with_batch_num = filename.replace("%batch_num%", str(batch_number))
-            file = f"{filename_with_batch_num}_{counter:05}_.png"
+            file = f"{filename_with_batch_num}-{uuid4()}.png"
             # Encode to PNG bytes once
             buffer = BytesIO()
             img.save(buffer, format="PNG", pnginfo=metadata, compress_level=self.compress_level)
