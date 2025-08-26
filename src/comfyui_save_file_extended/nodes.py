@@ -1,5 +1,8 @@
 from inspect import cleandoc
-from .image_extended import SaveImageExtended, PreviewImageExtended
+
+from .image_extended import SaveImageExtended
+
+
 class Example:
     """
     A example node
@@ -111,11 +114,9 @@ class Example:
 # NOTE: names should be globally unique
 NODE_CLASS_MAPPINGS = {
     "SaveImageExtended": SaveImageExtended,
-    "PreviewImageExtended": PreviewImageExtended
 }
 
 # A dictionary that contains the friendly/humanly readable titles for the nodes
 NODE_DISPLAY_NAME_MAPPINGS = {
     "SaveImageExtended": "Save Image Extended",
-    "PreviewImageExtended": "Preview Image Extended"
 }

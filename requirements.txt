@@ -1,0 +1,8 @@
+aiohttp<4
+boto3>=1.26.0
+google-cloud-storage>=2.10.0
+azure-storage-blob>=12.19.0
+b2sdk>=1.21.0
+dropbox>=11.36.0
+requests>=2.31.0
+supabase>=2.4.0
