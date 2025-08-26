@@ -52,10 +52,10 @@ class LoadImageExtended:
             "required": {
                 "load_from_cloud": ("BOOLEAN", {"default": False, "socketless": True, "label_on": "Cloud", "label_off": "Local", "tooltip": "Choose source: cloud provider or local input directory."}),
                 "file_paths": ("STRING", {"multiline": True, "placeholder": "One filename or key per line", "tooltip": "Files to load. For local: relative to the ComfyUI input directory or subfolders. For cloud: keys/paths relative to the chosen destination prefix."}),
+                # Local convenience picker (used when load_from_cloud is False)
+                "local_file": (sorted(files), {"image_upload": True}),
             },
             "optional": {
-                # Local convenience picker (used when load_from_cloud is False)
-                "local_file": (sorted(files), {"image_upload": True, "tooltip": "Pick a file from the ComfyUI input directory or upload a new one."}),
                 # Cloud configuration (used when load_from_cloud is True)
                 "cloud_provider": ([
                     "AWS S3",
