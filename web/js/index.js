@@ -1,6 +1,6 @@
+import { beforeRegisterNodeDef as uiBeforeRegisterNodeDef } from "./enhance-ui.js";
 import { setupProgress } from "./progress.js";
 import { setupToasts } from "./toasts.js";
-import { beforeRegisterNodeDef as uiBeforeRegisterNodeDef } from "./ui-enhance.js";
 import { app } from "/scripts/app.js";
 
 app.registerExtension({
