@@ -65,7 +65,7 @@ class LoadImageExtended:
     )
 
     RETURN_TYPES = ("IMAGE", "MASK")
-    FUNCTION = "load_images"
+    FUNCTION = "load_images_extended"
 
     def _load_pil_from_bytes(self, raw: bytes) -> Image.Image:
         return Image.open(io.BytesIO(raw))
@@ -111,7 +111,7 @@ class LoadImageExtended:
             output_mask = output_masks[0]
         return output_image, output_mask
 
-    def load_images(self, load_from_cloud: bool, file_paths: str, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key=""):
+    def load_images_extended(self, load_from_cloud: bool, file_paths: str, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key=""):
         paths = [p.strip() for p in file_paths.splitlines() if p.strip()]
         if not paths:
             raise ValueError("Provide at least one file path")
