@@ -66,6 +66,11 @@ def _get_access_token(api_key: str) -> str:
     return key
 
 
+def _get_headers(api_key: str) -> Dict[str, str]:
+    access_token = _get_access_token(api_key)
+    return {"Authorization": f"Bearer {access_token}"}
+
+
 class Uploader:
     @staticmethod
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
@@ -88,7 +93,7 @@ class Uploader:
         path_prefix = "/".join([p.strip("/") for p in [base_path, cloud_folder_path] if p and p.strip("/")])
 
         access_token = _get_access_token(api_key)
-        headers = {"Authorization": f"Bearer {access_token}"}
+        headers = _get_headers(api_key)
 
         if folder_id is None:
             parent_id = _resolve_parent_id_from_path(access_token, path_prefix)
@@ -134,7 +139,7 @@ class Uploader:
 
         path_prefix = "/".join([p.strip("/") for p in [base_path, cloud_folder_path] if p and p.strip("/")])
         access_token = _get_access_token(api_key)
-        headers = {"Authorization": f"Bearer {access_token}"}
+        headers = _get_headers(api_key)
 
         if folder_id is None:
             parent_id = _resolve_parent_id_from_path(access_token, path_prefix)
@@ -180,7 +185,7 @@ class Uploader:
         else:
             parent_id = _resolve_parent_id_from_path(access_token, path_prefix) if path_prefix else folder_id
 
-        headers = {"Authorization": f"Bearer {access_token}"}
+        headers = _get_headers(api_key)
         q = f"name='{key_or_filename}' and '{parent_id}' in parents and trashed=false"
         search = requests.get("https://www.googleapis.com/drive/v3/files", params={"q": q, "fields": "files(id,name)"}, headers=headers)
         search.raise_for_status()
@@ -208,7 +213,7 @@ class Uploader:
         path_prefix = "/".join([p.strip("/") for p in [base_path, cloud_folder_path] if p and p.strip("/")])
         parent_id = _resolve_parent_id_from_path(access_token, path_prefix) if folder_id is None or path_prefix else folder_id
 
-        headers = {"Authorization": f"Bearer {access_token}"}
+        headers = _get_headers(api_key)
         results: list[Dict[str, Any]] = []
         for name in keys:
             q = f"name='{name}' and '{parent_id}' in parents and trashed=false"

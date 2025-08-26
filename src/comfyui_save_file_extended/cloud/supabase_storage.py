@@ -30,13 +30,17 @@ def _parse_bucket_and_path(bucket_link: str, cloud_folder_path: str, filename: s
 
 class Uploader:
     @staticmethod
+    def _get_client(api_key: str):
+        from supabase import create_client
+        url, key = _parse_supabase_creds(api_key)
+        return create_client(url, key)
+    
+    @staticmethod
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
         from supabase import create_client
 
-        url, key = _parse_supabase_creds(api_key)
+        client = Uploader._get_client(api_key)
         bucket, path = _parse_bucket_and_path(bucket_link, cloud_folder_path, filename)
-
-        client = create_client(url, key)
         client.storage.from_(bucket).upload(path, image_bytes, file_options={"content-type": "image/png", "upsert": True})
         public_url = client.storage.from_(bucket).get_public_url(path)
 
@@ -51,10 +55,8 @@ class Uploader:
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
         from supabase import create_client
 
-        url, key = _parse_supabase_creds(api_key)
+        client = Uploader._get_client(api_key)
         bucket, _ = _parse_bucket_and_path(bucket_link, cloud_folder_path, "dummy")
-
-        client = create_client(url, key)
         results: list[Dict[str, Any]] = []
         for item in items:
             filename = item["filename"]
@@ -69,9 +71,8 @@ class Uploader:
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
         from supabase import create_client
 
-        url, key = _parse_supabase_creds(api_key)
+        client = Uploader._get_client(api_key)
         bucket, _ = _parse_bucket_and_path(bucket_link, cloud_folder_path, "dummy")
-        client = create_client(url, key)
         _, path = _parse_bucket_and_path(bucket_link, cloud_folder_path, key_or_filename)
         data = client.storage.from_(bucket).download(path)
         return data
@@ -80,9 +81,8 @@ class Uploader:
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
         from supabase import create_client
 
-        url, key = _parse_supabase_creds(api_key)
+        client = Uploader._get_client(api_key)
         bucket, _ = _parse_bucket_and_path(bucket_link, cloud_folder_path, "dummy")
-        client = create_client(url, key)
         results: list[Dict[str, Any]] = []
         for name in keys:
             _, path = _parse_bucket_and_path(bucket_link, cloud_folder_path, name)

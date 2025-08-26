@@ -59,20 +59,23 @@ def _parse_bucket_and_key(bucket_link: str, cloud_folder_path: str, filename: st
 
 class Uploader:
     @staticmethod
-    def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
+    def _create_client(api_key: str):
         import boto3
-
         access_key, secret_key, region = _parse_credentials(api_key)
-        bucket, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, filename)
-
         client_kwargs: Dict[str, Any] = {}
         if access_key and secret_key:
             client_kwargs["aws_access_key_id"] = access_key
             client_kwargs["aws_secret_access_key"] = secret_key
         if region:
             client_kwargs["region_name"] = region
+        return boto3.client("s3", **client_kwargs)
+    
+    @staticmethod
+    def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
+        import boto3
 
-        s3 = boto3.client("s3", **client_kwargs)
+        bucket, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, filename)
+        s3 = Uploader._create_client(api_key)
         s3.put_object(Bucket=bucket, Key=key, Body=image_bytes, ContentType="image/png")
 
         url = f"https://{bucket}.s3.amazonaws.com/{key}"
@@ -87,15 +90,7 @@ class Uploader:
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
         import boto3
 
-        access_key, secret_key, region = _parse_credentials(api_key)
-        # Reuse client
-        client_kwargs: Dict[str, Any] = {}
-        if access_key and secret_key:
-            client_kwargs["aws_access_key_id"] = access_key
-            client_kwargs["aws_secret_access_key"] = secret_key
-        if region:
-            client_kwargs["region_name"] = region
-        s3 = boto3.client("s3", **client_kwargs)
+        s3 = Uploader._create_client(api_key)
 
         results: list[Dict[str, Any]] = []
         for item in items:
@@ -111,16 +106,8 @@ class Uploader:
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
         import boto3
 
-        access_key, secret_key, region = _parse_credentials(api_key)
         bucket, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, key_or_filename)
-
-        client_kwargs: Dict[str, Any] = {}
-        if access_key and secret_key:
-            client_kwargs["aws_access_key_id"] = access_key
-            client_kwargs["aws_secret_access_key"] = secret_key
-        if region:
-            client_kwargs["region_name"] = region
-        s3 = boto3.client("s3", **client_kwargs)
+        s3 = Uploader._create_client(api_key)
         obj = s3.get_object(Bucket=bucket, Key=key)
         return obj["Body"].read()
 
@@ -128,14 +115,7 @@ class Uploader:
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
         import boto3
 
-        access_key, secret_key, region = _parse_credentials(api_key)
-        client_kwargs: Dict[str, Any] = {}
-        if access_key and secret_key:
-            client_kwargs["aws_access_key_id"] = access_key
-            client_kwargs["aws_secret_access_key"] = secret_key
-        if region:
-            client_kwargs["region_name"] = region
-        s3 = boto3.client("s3", **client_kwargs)
+        s3 = Uploader._create_client(api_key)
 
         results: list[Dict[str, Any]] = []
         for name in keys:

@@ -22,20 +22,22 @@ def _parse_bucket_and_key(bucket_link: str, cloud_folder_path: str, filename: st
 
 class Uploader:
     @staticmethod
-    def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
+    def _create_client(api_key: str):
         from google.cloud import storage
         from google.oauth2 import service_account
-
-        client: storage.Client
         if api_key and api_key.strip().startswith("{"):
             info = json.loads(api_key)
             creds = service_account.Credentials.from_service_account_info(info)
-            client = storage.Client(credentials=creds, project=info.get("project_id"))
+            return storage.Client(credentials=creds, project=info.get("project_id"))
         elif api_key and api_key.strip().endswith(".json"):
             creds = service_account.Credentials.from_service_account_file(api_key.strip())
-            client = storage.Client(credentials=creds)
+            return storage.Client(credentials=creds)
         else:
-            client = storage.Client()  # Relies on default credentials
+            return storage.Client()
+    
+    @staticmethod
+    def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
+        client = Uploader._create_client(api_key)
 
         bucket_name, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, filename)
         bucket = client.bucket(bucket_name)
@@ -52,19 +54,7 @@ class Uploader:
 
     @staticmethod
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        from google.cloud import storage
-        from google.oauth2 import service_account
-
-        client: storage.Client
-        if api_key and api_key.strip().startswith("{"):
-            info = json.loads(api_key)
-            creds = service_account.Credentials.from_service_account_info(info)
-            client = storage.Client(credentials=creds, project=info.get("project_id"))
-        elif api_key and api_key.strip().endswith(".json"):
-            creds = service_account.Credentials.from_service_account_file(api_key.strip())
-            client = storage.Client(credentials=creds)
-        else:
-            client = storage.Client()
+        client = Uploader._create_client(api_key)
 
         bucket_name, _ = _parse_bucket_and_key(bucket_link, cloud_folder_path, "dummy")
         bucket = client.bucket(bucket_name)
@@ -80,19 +70,7 @@ class Uploader:
 
     @staticmethod
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
-        from google.cloud import storage
-        from google.oauth2 import service_account
-
-        client: storage.Client
-        if api_key and api_key.strip().startswith("{"):
-            info = json.loads(api_key)
-            creds = service_account.Credentials.from_service_account_info(info)
-            client = storage.Client(credentials=creds, project=info.get("project_id"))
-        elif api_key and api_key.strip().endswith(".json"):
-            creds = service_account.Credentials.from_service_account_file(api_key.strip())
-            client = storage.Client(credentials=creds)
-        else:
-            client = storage.Client()
+        client = Uploader._create_client(api_key)
 
         bucket_name, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, key_or_filename)
         bucket = client.bucket(bucket_name)

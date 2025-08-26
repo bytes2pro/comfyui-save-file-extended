@@ -31,21 +31,24 @@ def _parse_container_and_blob(bucket_link: str, cloud_folder_path: str, filename
 
 class Uploader:
     @staticmethod
+    def _create_service_client(bucket_link: str, api_key: str, account_url: str) -> Any:
+        from azure.storage.blob import BlobServiceClient
+        if "DefaultEndpointsProtocol=" in bucket_link:
+            return BlobServiceClient.from_connection_string(bucket_link)
+        elif api_key and api_key.strip().startswith("DefaultEndpointsProtocol="):
+            return BlobServiceClient.from_connection_string(api_key.strip())
+        else:
+            if not account_url:
+                raise ValueError("Azure Blob requires an account URL or connection string")
+            return BlobServiceClient(account_url=account_url, credential=api_key if api_key else None)
+    
+    @staticmethod
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
         from azure.storage.blob import BlobServiceClient, ContentSettings
 
         account_url, container, blob_name = _parse_container_and_blob(bucket_link, cloud_folder_path, filename)
 
-        if "DefaultEndpointsProtocol=" in bucket_link:
-            # Connection string provided as bucket_link
-            service_client = BlobServiceClient.from_connection_string(bucket_link)
-        elif api_key and api_key.strip().startswith("DefaultEndpointsProtocol="):
-            # Connection string provided in api_key
-            service_client = BlobServiceClient.from_connection_string(api_key.strip())
-        else:
-            if not account_url:
-                raise ValueError("Azure Blob requires an account URL or connection string")
-            service_client = BlobServiceClient(account_url=account_url, credential=api_key if api_key else None)
+        service_client = Uploader._create_service_client(bucket_link, api_key, account_url)
 
         container_client = service_client.get_container_client(container)
         try:
@@ -71,14 +74,7 @@ class Uploader:
 
         account_url, container, _ = _parse_container_and_blob(bucket_link, cloud_folder_path, "dummy")
 
-        if "DefaultEndpointsProtocol=" in bucket_link:
-            service_client = BlobServiceClient.from_connection_string(bucket_link)
-        elif api_key and api_key.strip().startswith("DefaultEndpointsProtocol="):
-            service_client = BlobServiceClient.from_connection_string(api_key.strip())
-        else:
-            if not account_url:
-                raise ValueError("Azure Blob requires an account URL or connection string")
-            service_client = BlobServiceClient(account_url=account_url, credential=api_key if api_key else None)
+        service_client = Uploader._create_service_client(bucket_link, api_key, account_url)
 
         container_client = service_client.get_container_client(container)
         try:
@@ -105,14 +101,7 @@ class Uploader:
 
         account_url, container, blob_name = _parse_container_and_blob(bucket_link, cloud_folder_path, key_or_filename)
 
-        if "DefaultEndpointsProtocol=" in bucket_link:
-            service_client = BlobServiceClient.from_connection_string(bucket_link)
-        elif api_key and api_key.strip().startswith("DefaultEndpointsProtocol="):
-            service_client = BlobServiceClient.from_connection_string(api_key.strip())
-        else:
-            if not account_url:
-                raise ValueError("Azure Blob requires an account URL or connection string")
-            service_client = BlobServiceClient(account_url=account_url, credential=api_key if api_key else None)
+        service_client = Uploader._create_service_client(bucket_link, api_key, account_url)
 
         blob_client = service_client.get_blob_client(container=container, blob=blob_name)
         downloader = blob_client.download_blob()

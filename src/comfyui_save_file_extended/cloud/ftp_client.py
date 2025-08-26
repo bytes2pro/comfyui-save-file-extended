@@ -6,21 +6,24 @@ from typing import Any, Dict
 from urllib.parse import urlparse
 
 
+def _parse_ftp(bucket_link: str, cloud_folder_path: str):
+    parsed = urlparse(bucket_link)
+    if parsed.scheme != "ftp":
+        raise ValueError("FTP bucket_link must start with ftp://user:pass@host[:port]/basepath")
+    host = parsed.hostname
+    port = parsed.port or 21
+    user = parsed.username or "anonymous"
+    password = parsed.password or "anonymous@"
+    base_path = parsed.path or "/"
+    parts = [p for p in [base_path, cloud_folder_path] if p]
+    prefix = "/".join([p.strip("/") for p in parts if p and p.strip("/")])
+    return host, port, user, password, prefix
+
+
 class Uploader:
     @staticmethod
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
-        parsed = urlparse(bucket_link)
-        if parsed.scheme != "ftp":
-            raise ValueError("FTP bucket_link must start with ftp://user:pass@host[:port]/basepath")
-
-        host = parsed.hostname
-        port = parsed.port or 21
-        user = parsed.username or "anonymous"
-        password = parsed.password or "anonymous@"
-
-        base_path = parsed.path or "/"
-        parts = [p for p in [base_path, cloud_folder_path] if p]
-        prefix = "/".join([p.strip("/") for p in parts if p and p.strip("/")])
+        host, port, user, password, prefix = _parse_ftp(bucket_link, cloud_folder_path)
         remote_path = f"/{prefix + '/' if prefix else ''}{filename}"
 
         with FTP() as ftp:
@@ -47,18 +50,7 @@ class Uploader:
 
     @staticmethod
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        parsed = urlparse(bucket_link)
-        if parsed.scheme != "ftp":
-            raise ValueError("FTP bucket_link must start with ftp://user:pass@host[:port]/basepath")
-
-        host = parsed.hostname
-        port = parsed.port or 21
-        user = parsed.username or "anonymous"
-        password = parsed.password or "anonymous@"
-
-        base_path = parsed.path or "/"
-        parts = [p for p in [base_path, cloud_folder_path] if p]
-        prefix = "/".join([p.strip("/") for p in parts if p and p.strip("/")])
+        host, port, user, password, prefix = _parse_ftp(bucket_link, cloud_folder_path)
 
         results: list[Dict[str, Any]] = []
         with FTP() as ftp:
@@ -83,18 +75,7 @@ class Uploader:
 
     @staticmethod
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
-        parsed = urlparse(bucket_link)
-        if parsed.scheme != "ftp":
-            raise ValueError("FTP bucket_link must start with ftp://user:pass@host[:port]/basepath")
-
-        host = parsed.hostname
-        port = parsed.port or 21
-        user = parsed.username or "anonymous"
-        password = parsed.password or "anonymous@"
-
-        base_path = parsed.path or "/"
-        parts = [p for p in [base_path, cloud_folder_path] if p]
-        prefix = "/".join([p.strip("/") for p in parts if p and p.strip("/")])
+        host, port, user, password, prefix = _parse_ftp(bucket_link, cloud_folder_path)
         remote_path = f"/{prefix + '/' if prefix else ''}{key_or_filename}"
 
         bio = io.BytesIO()
@@ -110,18 +91,7 @@ class Uploader:
 
     @staticmethod
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        parsed = urlparse(bucket_link)
-        if parsed.scheme != "ftp":
-            raise ValueError("FTP bucket_link must start with ftp://user:pass@host[:port]/basepath")
-
-        host = parsed.hostname
-        port = parsed.port or 21
-        user = parsed.username or "anonymous"
-        password = parsed.password or "anonymous@"
-
-        base_path = parsed.path or "/"
-        parts = [p for p in [base_path, cloud_folder_path] if p]
-        prefix = "/".join([p.strip("/") for p in parts if p and p.strip("/")])
+        host, port, user, password, prefix = _parse_ftp(bucket_link, cloud_folder_path)
 
         results: list[Dict[str, Any]] = []
         with FTP() as ftp:

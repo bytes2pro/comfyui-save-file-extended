@@ -82,6 +82,11 @@ def _get_access_token(api_key: str) -> str:
     return key
 
 
+def _get_headers(api_key: str) -> Dict[str, str]:
+    token = _get_access_token(api_key)
+    return {"Authorization": f"Bearer {token}"}
+
+
 class Uploader:
     @staticmethod
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
@@ -94,7 +99,7 @@ class Uploader:
         path_prefix = "/".join(path.strip("/").split("/")[:-1])
 
         access_token = _get_access_token(api_key)
-        headers = {"Authorization": f"Bearer {access_token}"}
+        headers = _get_headers(api_key)
         # Ensure parent folder chain exists and get its id
         parent_id = _ensure_onedrive_parent_id(access_token, path_prefix)
 
@@ -124,7 +129,7 @@ class Uploader:
         path_prefix = "/".join(example_path.strip("/").split("/")[:-1])
 
         access_token = _get_access_token(api_key)
-        headers = {"Authorization": f"Bearer {access_token}"}
+        headers = _get_headers(api_key)
         parent_id = _ensure_onedrive_parent_id(access_token, path_prefix)
 
         results: list[Dict[str, Any]] = []
@@ -145,7 +150,7 @@ class Uploader:
         access_token = _get_access_token(api_key)
         path = _build_path(bucket_link, cloud_folder_path, key_or_filename)
         url = f"https://graph.microsoft.com/v1.0/me/drive/root:{path}:/content"
-        headers = {"Authorization": f"Bearer {access_token}"}
+        headers = _get_headers(api_key)
         resp = requests.get(url, headers=headers)
         resp.raise_for_status()
         return resp.content
@@ -155,7 +160,7 @@ class Uploader:
         import requests
 
         access_token = _get_access_token(api_key)
-        headers = {"Authorization": f"Bearer {access_token}"}
+        headers = _get_headers(api_key)
         results: list[Dict[str, Any]] = []
         for name in keys:
             path = _build_path(bucket_link, cloud_folder_path, name)

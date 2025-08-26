@@ -15,13 +15,17 @@ def _resolve_path(bucket_link: str, cloud_folder_path: str, filename: str) -> st
 
 class Uploader:
     @staticmethod
+    def _get_dbx(api_key: str):
+        import dropbox
+        if not api_key:
+            raise ValueError("Dropbox api_key (access token) is required")
+        return dropbox.Dropbox(api_key.strip())
+    
+    @staticmethod
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
         import dropbox
 
-        if not api_key:
-            raise ValueError("Dropbox api_key (access token) is required")
-
-        dbx = dropbox.Dropbox(api_key.strip())
+        dbx = Uploader._get_dbx(api_key)
         # Ensure folder path exists
         parent_path = _resolve_path(bucket_link, cloud_folder_path, "").rstrip("/")
         if parent_path and parent_path != "/":
@@ -50,10 +54,7 @@ class Uploader:
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
         import dropbox
 
-        if not api_key:
-            raise ValueError("Dropbox api_key (access token) is required")
-
-        dbx = dropbox.Dropbox(api_key.strip())
+        dbx = Uploader._get_dbx(api_key)
 
         # Ensure folder path exists once
         parent_path = _resolve_path(bucket_link, cloud_folder_path, "").rstrip("/")
@@ -80,10 +81,7 @@ class Uploader:
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
         import dropbox
 
-        if not api_key:
-            raise ValueError("Dropbox api_key (access token) is required")
-
-        dbx = dropbox.Dropbox(api_key.strip())
+        dbx = Uploader._get_dbx(api_key)
         path = _resolve_path(bucket_link, cloud_folder_path, key_or_filename)
         metadata, resp = dbx.files_download(path)
         return resp.content
@@ -92,10 +90,7 @@ class Uploader:
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
         import dropbox
 
-        if not api_key:
-            raise ValueError("Dropbox api_key (access token) is required")
-
-        dbx = dropbox.Dropbox(api_key.strip())
+        dbx = Uploader._get_dbx(api_key)
         results: list[Dict[str, Any]] = []
         for name in keys:
             path = _resolve_path(bucket_link, cloud_folder_path, name)
