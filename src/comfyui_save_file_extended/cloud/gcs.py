@@ -4,6 +4,9 @@ import json
 from typing import Any, Dict, Tuple
 from urllib.parse import urlparse
 
+from google.cloud import storage
+from google.oauth2 import service_account
+
 
 def _parse_bucket_and_key(bucket_link: str, cloud_folder_path: str, filename: str) -> Tuple[str, str]:
     parsed = urlparse(bucket_link)
@@ -23,8 +26,6 @@ def _parse_bucket_and_key(bucket_link: str, cloud_folder_path: str, filename: st
 class Uploader:
     @staticmethod
     def _create_client(api_key: str):
-        from google.cloud import storage
-        from google.oauth2 import service_account
         if api_key and api_key.strip().startswith("{"):
             info = json.loads(api_key)
             creds = service_account.Credentials.from_service_account_info(info)
@@ -79,9 +80,6 @@ class Uploader:
 
     @staticmethod
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        from google.cloud import storage
-        from google.oauth2 import service_account
-
         client: storage.Client
         if api_key and api_key.strip().startswith("{"):
             info = json.loads(api_key)
@@ -101,5 +99,3 @@ class Uploader:
             blob = bucket.blob(key)
             results.append({"filename": name, "content": blob.download_as_bytes()})
         return results
-
-

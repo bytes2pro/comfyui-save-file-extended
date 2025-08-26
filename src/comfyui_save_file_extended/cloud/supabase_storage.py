@@ -4,6 +4,8 @@ import json
 from typing import Any, Dict, Tuple
 from urllib.parse import urlparse
 
+from supabase import create_client
+
 
 def _parse_supabase_creds(api_key: str) -> Tuple[str, str]:
     api_key = api_key.strip()
@@ -31,14 +33,11 @@ def _parse_bucket_and_path(bucket_link: str, cloud_folder_path: str, filename: s
 class Uploader:
     @staticmethod
     def _get_client(api_key: str):
-        from supabase import create_client
         url, key = _parse_supabase_creds(api_key)
         return create_client(url, key)
     
     @staticmethod
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
-        from supabase import create_client
-
         client = Uploader._get_client(api_key)
         bucket, path = _parse_bucket_and_path(bucket_link, cloud_folder_path, filename)
         client.storage.from_(bucket).upload(path, image_bytes, file_options={"content-type": "image/png", "upsert": True})
@@ -53,8 +52,6 @@ class Uploader:
 
     @staticmethod
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        from supabase import create_client
-
         client = Uploader._get_client(api_key)
         bucket, _ = _parse_bucket_and_path(bucket_link, cloud_folder_path, "dummy")
         results: list[Dict[str, Any]] = []
@@ -69,8 +66,6 @@ class Uploader:
 
     @staticmethod
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
-        from supabase import create_client
-
         client = Uploader._get_client(api_key)
         bucket, _ = _parse_bucket_and_path(bucket_link, cloud_folder_path, "dummy")
         _, path = _parse_bucket_and_path(bucket_link, cloud_folder_path, key_or_filename)
@@ -79,8 +74,6 @@ class Uploader:
 
     @staticmethod
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        from supabase import create_client
-
         client = Uploader._get_client(api_key)
         bucket, _ = _parse_bucket_and_path(bucket_link, cloud_folder_path, "dummy")
         results: list[Dict[str, Any]] = []
@@ -89,5 +82,3 @@ class Uploader:
             data = client.storage.from_(bucket).download(path)
             results.append({"filename": name, "content": data})
         return results
-
-

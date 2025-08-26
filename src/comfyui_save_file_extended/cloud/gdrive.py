@@ -4,13 +4,14 @@ import json
 from typing import Any, Dict
 from urllib.parse import urlparse
 
+import requests
+
 
 def _resolve_parent_id_from_path(api_token: str, path: str) -> str:
     """
     Resolve or create folders by path under My Drive and return the parent folder ID.
     This requires that api_token is a valid OAuth2 access token with drive scope.
     """
-    import requests
 
     headers = {"Authorization": f"Bearer {api_token}"}
     parent_id = "root"
@@ -37,8 +38,6 @@ def _get_access_token(api_key: str) -> str:
       {"access_token": str, "refresh_token": str, "client_id": str, "client_secret": str}
     If a refresh_token is provided, exchanges it for a fresh access_token via Google's token endpoint.
     """
-    import requests
-
     key = api_key.strip()
     if key.startswith("{"):
         data = json.loads(key)
@@ -74,8 +73,6 @@ def _get_headers(api_key: str) -> Dict[str, str]:
 class Uploader:
     @staticmethod
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
-        import requests  # type: ignore
-
         if not api_key:
             raise ValueError("Google Drive api_key must be an OAuth2 access token with drive scope")
 
@@ -123,8 +120,6 @@ class Uploader:
 
     @staticmethod
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        import requests
-
         if not api_key:
             raise ValueError("Google Drive api_key must be an OAuth2 access token with drive scope")
 
@@ -167,8 +162,6 @@ class Uploader:
 
     @staticmethod
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
-        import requests
-
         access_token = _get_access_token(api_key)
         parsed = urlparse(bucket_link)
         base_path = parsed.path if parsed.scheme != "drive" else ""
@@ -199,8 +192,6 @@ class Uploader:
 
     @staticmethod
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        import requests
-
         access_token = _get_access_token(api_key)
         parsed = urlparse(bucket_link)
         base_path = parsed.path if parsed.scheme != "drive" else ""
@@ -227,4 +218,3 @@ class Uploader:
             resp.raise_for_status()
             results.append({"filename": name, "content": resp.content})
         return results
-

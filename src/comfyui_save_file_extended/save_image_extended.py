@@ -10,6 +10,7 @@ from PIL.PngImagePlugin import PngInfo
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "comfy"))
 
+from inspect import cleandoc
 from io import BytesIO
 
 import folder_paths
@@ -19,6 +20,34 @@ from .cloud import get_uploader
 
 
 class SaveImageExtended:
+    """
+    Save images locally and/or upload to a cloud provider.
+
+    How it works
+    ------------
+    - Local: Saves PNG files under the ComfyUI output directory (only if 'Save to Local' is enabled).
+    - Cloud: Uploads all images in one batch per run (only if 'Save to Cloud' is enabled).
+    - Result: UI shows local files; cloud upload details are returned in the node output under 'cloud'.
+
+    Cloud provider examples
+    -----------------------
+    - AWS S3 → bucket_link: s3://my-bucket/prefix | cloud_api_key: JSON {access_key, secret_key, region} or 'ACCESS:SECRET[:REGION]'.
+    - S3-Compatible → bucket_link: https://endpoint.example.com/my-bucket/prefix | cloud_api_key: same as S3.
+    - Google Cloud Storage → bucket_link: gs://bucket/prefix or bucket/prefix | cloud_api_key: service-account JSON string or path (empty uses ADC).
+    - Azure Blob → bucket_link: connection string OR https://account.blob.core.windows.net/container/prefix | cloud_api_key: connection string or account key/SAS when using URL.
+    - Backblaze B2 → bucket_link: b2://bucket/prefix or bucket/prefix | cloud_api_key: KEY_ID:APP_KEY.
+    - Google Drive → bucket_link: /MyFolder/Sub OR drive://<folderId>/<optional/subpath> | cloud_api_key: OAuth2 access token.
+    - Dropbox → bucket_link: /base/path | cloud_api_key: access token.
+    - OneDrive → bucket_link: /base/path | cloud_api_key: OAuth2 access token.
+    - FTP → bucket_link: ftp://user:pass@host[:port]/basepath | cloud_api_key: not used.
+    - Supabase → bucket_link: <bucket_name> | cloud_api_key: JSON {url, key} or 'url|key'.
+
+    Token refresh (optional)
+    ------------------------
+    - Google Drive cloud_api_key JSON: {client_id, client_secret, refresh_token} (optional access_token).
+    - OneDrive cloud_api_key JSON: {client_id, client_secret, refresh_token, tenant='common'|'consumers'|'organizations', redirect_uri?}.
+    When provided, a fresh access token is obtained automatically before uploading.
+    """
     def __init__(self):
         self.output_dir = folder_paths.get_output_directory()
         self.type = "output"
@@ -66,31 +95,7 @@ class SaveImageExtended:
     OUTPUT_NODE = True
 
     CATEGORY = "image"
-    DESCRIPTION = (
-        "Save images locally and/or upload to a cloud provider.\n"
-        "\n"
-        "How it works:\n"
-        "- Local: Saves PNG files under the ComfyUI output directory (only if 'Save to Local' is enabled).\n"
-        "- Cloud: Uploads all images in one batch per run (only if 'Save to Cloud' is enabled).\n"
-        "- Result: UI shows local files; cloud upload details are returned in the node output under 'cloud'.\n"
-        "\n"
-        "Cloud provider examples:\n"
-        "- AWS S3 → bucket_link: s3://my-bucket/prefix | cloud_api_key: JSON {access_key, secret_key, region} or 'ACCESS:SECRET[:REGION]'.\n"
-        "- S3-Compatible → bucket_link: https://endpoint.example.com/my-bucket/prefix | cloud_api_key: same as S3.\n"
-        "- Google Cloud Storage → bucket_link: gs://bucket/prefix or bucket/prefix | cloud_api_key: service-account JSON string or path (empty uses ADC).\n"
-        "- Azure Blob → bucket_link: connection string OR https://account.blob.core.windows.net/container/prefix | cloud_api_key: connection string or account key/SAS when using URL.\n"
-        "- Backblaze B2 → bucket_link: b2://bucket/prefix or bucket/prefix | cloud_api_key: KEY_ID:APP_KEY.\n"
-        "- Google Drive → bucket_link: /MyFolder/Sub OR drive://<folderId>/<optional/subpath> | cloud_api_key: OAuth2 access token.\n"
-        "- Dropbox → bucket_link: /base/path | cloud_api_key: access token.\n"
-        "- OneDrive → bucket_link: /base/path | cloud_api_key: OAuth2 access token.\n"
-        "- FTP → bucket_link: ftp://user:pass@host[:port]/basepath | cloud_api_key: not used.\n"
-        "- Supabase → bucket_link: <bucket_name> | cloud_api_key: JSON {url, key} or 'url|key'.\n"
-        "\n"
-        "Token refresh (optional):\n"
-        "- Google Drive cloud_api_key JSON: {client_id, client_secret, refresh_token} (optional access_token).\n"
-        "- OneDrive cloud_api_key JSON: {client_id, client_secret, refresh_token, tenant='common'|'consumers'|'organizations', redirect_uri?}.\n"
-        "When provided, a fresh access token is obtained automatically before uploading.\n"
-    )
+    DESCRIPTION = cleandoc(__doc__)
 
     @classmethod
     def VALIDATE_INPUTS(s,

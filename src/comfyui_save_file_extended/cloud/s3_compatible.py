@@ -4,6 +4,8 @@ import json
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
 
+import boto3
+
 
 def _parse_credentials(api_key: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
@@ -59,7 +61,6 @@ def _parse_endpoint_bucket_key(bucket_link: str, cloud_folder_path: str, filenam
 class Uploader:
     @staticmethod
     def _create_client(api_key: str, endpoint_url: str):
-        import boto3
         access_key, secret_key, region = _parse_credentials(api_key)
         client_kwargs: Dict[str, Any] = {"endpoint_url": endpoint_url}
         if access_key and secret_key:
@@ -71,8 +72,6 @@ class Uploader:
     
     @staticmethod
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
-        import boto3
-
         endpoint_url, bucket, key = _parse_endpoint_bucket_key(bucket_link, cloud_folder_path, filename)
         s3 = Uploader._create_client(api_key, endpoint_url)
         s3.put_object(Bucket=bucket, Key=key, Body=image_bytes, ContentType="image/png")
@@ -87,8 +86,6 @@ class Uploader:
 
     @staticmethod
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        import boto3
-
         endpoint_url, bucket, _ = _parse_endpoint_bucket_key(bucket_link, cloud_folder_path, "dummy")
         s3 = Uploader._create_client(api_key, endpoint_url)
         results: list[Dict[str, Any]] = []
@@ -103,8 +100,6 @@ class Uploader:
 
     @staticmethod
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
-        import boto3
-
         endpoint_url, bucket, key = _parse_endpoint_bucket_key(bucket_link, cloud_folder_path, key_or_filename)
         s3 = Uploader._create_client(api_key, endpoint_url)
         obj = s3.get_object(Bucket=bucket, Key=key)
@@ -112,8 +107,6 @@ class Uploader:
 
     @staticmethod
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        import boto3
-
         endpoint_url, _, _ = _parse_endpoint_bucket_key(bucket_link, cloud_folder_path, "dummy")
         s3 = Uploader._create_client(api_key, endpoint_url)
 
@@ -123,5 +116,3 @@ class Uploader:
             obj = s3.get_object(Bucket=bucket, Key=key)
             results.append({"filename": name, "content": obj["Body"].read()})
         return results
-
-

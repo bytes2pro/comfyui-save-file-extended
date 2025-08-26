@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any, Dict
 from urllib.parse import urlparse
 
+import dropbox
+
 
 def _resolve_path(bucket_link: str, cloud_folder_path: str, filename: str) -> str:
     parsed = urlparse(bucket_link)
@@ -16,15 +18,12 @@ def _resolve_path(bucket_link: str, cloud_folder_path: str, filename: str) -> st
 class Uploader:
     @staticmethod
     def _get_dbx(api_key: str):
-        import dropbox
         if not api_key:
             raise ValueError("Dropbox api_key (access token) is required")
         return dropbox.Dropbox(api_key.strip())
     
     @staticmethod
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
-        import dropbox
-
         dbx = Uploader._get_dbx(api_key)
         # Ensure folder path exists
         parent_path = _resolve_path(bucket_link, cloud_folder_path, "").rstrip("/")
@@ -52,8 +51,6 @@ class Uploader:
 
     @staticmethod
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        import dropbox
-
         dbx = Uploader._get_dbx(api_key)
 
         # Ensure folder path exists once
@@ -79,8 +76,6 @@ class Uploader:
 
     @staticmethod
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
-        import dropbox
-
         dbx = Uploader._get_dbx(api_key)
         path = _resolve_path(bucket_link, cloud_folder_path, key_or_filename)
         metadata, resp = dbx.files_download(path)
@@ -88,8 +83,6 @@ class Uploader:
 
     @staticmethod
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        import dropbox
-
         dbx = Uploader._get_dbx(api_key)
         results: list[Dict[str, Any]] = []
         for name in keys:
@@ -97,5 +90,3 @@ class Uploader:
             metadata, resp = dbx.files_download(path)
             results.append({"filename": name, "content": resp.content})
         return results
-
-

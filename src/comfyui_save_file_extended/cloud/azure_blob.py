@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any, Dict, Tuple
 from urllib.parse import urlparse
 
+from azure.storage.blob import BlobServiceClient, ContentSettings
+
 
 def _parse_container_and_blob(bucket_link: str, cloud_folder_path: str, filename: str) -> Tuple[str, str, str]:
     """
@@ -32,7 +34,6 @@ def _parse_container_and_blob(bucket_link: str, cloud_folder_path: str, filename
 class Uploader:
     @staticmethod
     def _create_service_client(bucket_link: str, api_key: str, account_url: str) -> Any:
-        from azure.storage.blob import BlobServiceClient
         if "DefaultEndpointsProtocol=" in bucket_link:
             return BlobServiceClient.from_connection_string(bucket_link)
         elif api_key and api_key.strip().startswith("DefaultEndpointsProtocol="):
@@ -44,8 +45,6 @@ class Uploader:
     
     @staticmethod
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
-        from azure.storage.blob import BlobServiceClient, ContentSettings
-
         account_url, container, blob_name = _parse_container_and_blob(bucket_link, cloud_folder_path, filename)
 
         service_client = Uploader._create_service_client(bucket_link, api_key, account_url)
@@ -70,8 +69,6 @@ class Uploader:
 
     @staticmethod
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        from azure.storage.blob import BlobServiceClient, ContentSettings
-
         account_url, container, _ = _parse_container_and_blob(bucket_link, cloud_folder_path, "dummy")
 
         service_client = Uploader._create_service_client(bucket_link, api_key, account_url)
@@ -97,8 +94,6 @@ class Uploader:
 
     @staticmethod
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
-        from azure.storage.blob import BlobServiceClient
-
         account_url, container, blob_name = _parse_container_and_blob(bucket_link, cloud_folder_path, key_or_filename)
 
         service_client = Uploader._create_service_client(bucket_link, api_key, account_url)
@@ -108,9 +103,7 @@ class Uploader:
         return downloader.readall()
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        from azure.storage.blob import BlobServiceClient
-
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]: # type: ignore
         account_url, container, _ = _parse_container_and_blob(bucket_link, cloud_folder_path, "dummy")
 
         if "DefaultEndpointsProtocol=" in bucket_link:
@@ -129,5 +122,3 @@ class Uploader:
             downloader = blob_client.download_blob()
             results.append({"filename": name, "content": downloader.readall()})
         return results
-
-

@@ -12,12 +12,35 @@ from PIL import Image, ImageOps, ImageSequence
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "comfy"))
 
+from inspect import cleandoc
+
 import folder_paths
 
 from .cloud import get_uploader
 
 
 class LoadImageExtended:
+    """
+    Load images from local input directory or from a cloud provider.
+
+    How it works
+    ------------
+    - Local: file_paths are relative to the ComfyUI input directory (supports subfolders).
+    - Cloud: file_paths are keys/filenames under the provided bucket/container/folder.
+
+    Cloud provider examples
+    -----------------------
+    - S3 → bucket_link: s3://my-bucket/prefix
+    - S3-Compatible → bucket_link: https://endpoint/bucket/prefix
+    - GCS → bucket_link: gs://bucket/prefix or bucket/prefix
+    - Azure Blob → bucket_link: connection string OR https://account.blob.core.windows.net/container/prefix
+    - B2 → bucket_link: b2://bucket/prefix or bucket/prefix
+    - Google Drive → bucket_link: /MyFolder/Sub OR drive://<folderId>/<optional/subpath>
+    - Dropbox → bucket_link: /base/path
+    - OneDrive → bucket_link: /base/path
+    - FTP → bucket_link: ftp://user:pass@host[:port]/basepath
+    - Supabase → bucket_link: <bucket_name>
+    """
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -46,23 +69,7 @@ class LoadImageExtended:
         }
 
     CATEGORY = "image"
-    DESCRIPTION = (
-        "Load images from local input directory or from a cloud provider.\n"
-        "- Local: file_paths are relative to the ComfyUI input directory (supports subfolders).\n"
-        "- Cloud: file_paths are keys/filenames under the provided bucket/container/folder.\n"
-        "\n"
-        "Cloud provider examples:\n"
-        "- S3 → bucket_link: s3://my-bucket/prefix\n"
-        "- S3-Compatible → bucket_link: https://endpoint/bucket/prefix\n"
-        "- GCS → bucket_link: gs://bucket/prefix or bucket/prefix\n"
-        "- Azure Blob → bucket_link: connection string OR https://account.blob.core.windows.net/container/prefix\n"
-        "- B2 → bucket_link: b2://bucket/prefix or bucket/prefix\n"
-        "- Google Drive → bucket_link: /MyFolder/Sub OR drive://<folderId>/<optional/subpath>\n"
-        "- Dropbox → bucket_link: /base/path\n"
-        "- OneDrive → bucket_link: /base/path\n"
-        "- FTP → bucket_link: ftp://user:pass@host[:port]/basepath\n"
-        "- Supabase → bucket_link: <bucket_name>\n"
-    )
+    DESCRIPTION = cleandoc(__doc__)
 
     RETURN_TYPES = ("IMAGE", "MASK")
     FUNCTION = "load_images_extended"

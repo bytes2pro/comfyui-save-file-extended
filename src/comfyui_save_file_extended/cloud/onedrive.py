@@ -4,6 +4,8 @@ import json
 from typing import Any, Dict
 from urllib.parse import urlparse
 
+import requests
+
 
 def _build_path(bucket_link: str, cloud_folder_path: str, filename: str) -> str:
     base_path = urlparse(bucket_link).path or bucket_link
@@ -14,7 +16,6 @@ def _build_path(bucket_link: str, cloud_folder_path: str, filename: str) -> str:
 
 
 def _ensure_onedrive_parent_id(access_token: str, path_prefix: str) -> str:
-    import requests
     headers = {"Authorization": f"Bearer {access_token}"}
 
     # Get root id
@@ -50,8 +51,6 @@ def _get_access_token(api_key: str) -> str:
       {"access_token": str, "refresh_token": str, "client_id": str, "client_secret": str, "tenant": "common|consumers|organizations", "redirect_uri": str}
     If a refresh_token is provided, exchanges it for a fresh access_token via Microsoft identity platform.
     """
-    import requests
-
     key = api_key.strip()
     if key.startswith("{"):
         data = json.loads(key)
@@ -90,8 +89,6 @@ def _get_headers(api_key: str) -> Dict[str, str]:
 class Uploader:
     @staticmethod
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
-        import requests
-
         if not api_key:
             raise ValueError("OneDrive api_key must be a valid OAuth 2.0 access token")
 
@@ -119,8 +116,6 @@ class Uploader:
 
     @staticmethod
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        import requests
-
         if not api_key:
             raise ValueError("OneDrive api_key must be a valid OAuth 2.0 access token")
 
@@ -145,8 +140,6 @@ class Uploader:
 
     @staticmethod
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
-        import requests
-
         access_token = _get_access_token(api_key)
         path = _build_path(bucket_link, cloud_folder_path, key_or_filename)
         url = f"https://graph.microsoft.com/v1.0/me/drive/root:{path}:/content"
@@ -157,8 +150,6 @@ class Uploader:
 
     @staticmethod
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str) -> list[Dict[str, Any]]:
-        import requests
-
         access_token = _get_access_token(api_key)
         headers = _get_headers(api_key)
         results: list[Dict[str, Any]] = []
