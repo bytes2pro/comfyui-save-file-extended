@@ -31,6 +31,41 @@ def _resolve_parent_id_from_path(api_token: str, path: str) -> str:
     return parent_id
 
 
+def _get_access_token(api_key: str) -> str:
+    """
+    Accepts either a raw access token string or a JSON with fields:
+      {"access_token": str, "refresh_token": str, "client_id": str, "client_secret": str}
+    If a refresh_token is provided, exchanges it for a fresh access_token via Google's token endpoint.
+    """
+    import requests
+
+    key = api_key.strip()
+    if key.startswith("{"):
+        data = json.loads(key)
+        access_token = data.get("access_token")
+        refresh_token = data.get("refresh_token")
+        client_id = data.get("client_id")
+        client_secret = data.get("client_secret")
+        if refresh_token and client_id and client_secret:
+            resp = requests.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            token_json = resp.json()
+            return token_json.get("access_token")
+        if access_token:
+            return access_token
+        # Fallthrough to treat as raw token
+    return key
+
+
 class Uploader:
     @staticmethod
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
@@ -52,14 +87,15 @@ class Uploader:
 
         path_prefix = "/".join([p.strip("/") for p in [base_path, cloud_folder_path] if p and p.strip("/")])
 
-        headers = {"Authorization": f"Bearer {api_key}"}
+        access_token = _get_access_token(api_key)
+        headers = {"Authorization": f"Bearer {access_token}"}
 
         if folder_id is None:
-            parent_id = _resolve_parent_id_from_path(api_key, path_prefix)
+            parent_id = _resolve_parent_id_from_path(access_token, path_prefix)
         else:
             # If extra path under folder id
             if path_prefix:
-                parent_id = _resolve_parent_id_from_path(api_key, path_prefix)
+                parent_id = _resolve_parent_id_from_path(access_token, path_prefix)
             else:
                 parent_id = folder_id
 
@@ -97,13 +133,14 @@ class Uploader:
                 base_path = parsed.path
 
         path_prefix = "/".join([p.strip("/") for p in [base_path, cloud_folder_path] if p and p.strip("/")])
-        headers = {"Authorization": f"Bearer {api_key}"}
+        access_token = _get_access_token(api_key)
+        headers = {"Authorization": f"Bearer {access_token}"}
 
         if folder_id is None:
-            parent_id = _resolve_parent_id_from_path(api_key, path_prefix)
+            parent_id = _resolve_parent_id_from_path(access_token, path_prefix)
         else:
             if path_prefix:
-                parent_id = _resolve_parent_id_from_path(api_key, path_prefix)
+                parent_id = _resolve_parent_id_from_path(access_token, path_prefix)
             else:
                 parent_id = folder_id
 

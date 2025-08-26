@@ -29,12 +29,12 @@ class SaveImageExtended:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "images": ("IMAGE", {"tooltip": "The images to save."}),
-                "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "The prefix for the file to save. This may include formatting information such as %date:yyyy-MM-dd% or %Empty Latent Image.width% to include values from nodes."})
+                "images": ("IMAGE", {"tooltip": "Image tensor batch to save."}),
+                "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "Filename prefix. Supports tokens like %date:yyyy-MM-dd% and node field tokens (e.g. %Empty Latent Image.width%)."})
             },
             "optional": {
                 # Cloud section (acts as a header toggle)
-                "save_to_cloud": ("BOOLEAN", {"default": True, "socketless": True, "label_on": "Enabled", "label_off": "Disabled", "tooltip": "Section: Save to Cloud."}),
+                "save_to_cloud": ("BOOLEAN", {"default": True, "socketless": True, "label_on": "Enabled", "label_off": "Disabled", "tooltip": "Enable uploading to a cloud provider. Configure provider, destination, and credentials below."}),
                 "cloud_provider": ([
                     "AWS S3",
                     "Google Cloud Storage",
@@ -46,14 +46,14 @@ class SaveImageExtended:
                     "FTP",
                     "Supabase Storage",
                     "S3-Compatible"
-                ], {"default": "AWS S3", "tooltip": "Choose a cloud provider (required when cloud is enabled)."}),
-                "bucket_link": ("STRING", {"default": "", "placeholder": "Bucket URL / Connection String*", "tooltip": "Provider target (format depends on provider). See Description for examples."}),
-                "cloud_folder_path": ("STRING", {"default": "outputs", "placeholder": "Folder path in bucket (e.g. outputs)", "tooltip": "Path in the provider to store images (varies by provider)."}),
-                "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key*", "tooltip": "Credentials/token (format depends on provider). See Description for examples."}),
+                ], {"default": "AWS S3", "tooltip": "Select the cloud provider. See Description for exact formats."}),
+                "bucket_link": ("STRING", {"default": "", "placeholder": "Bucket URL / Connection String*", "tooltip": "Destination identifier (varies by provider). Examples: s3://bucket/prefix, gs://bucket, https://account.blob.core.windows.net/container, b2://bucket, drive://folderId, /Dropbox/Path, /OneDrive/Path, ftp://user:pass@host/basepath, or Supabase bucket name. See Description."}),
+                "cloud_folder_path": ("STRING", {"default": "outputs", "placeholder": "Folder path in bucket (e.g. outputs)", "tooltip": "Folder/key prefix under the destination. Created if missing (where applicable)."}),
+                "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key*", "tooltip": "Credentials. Supports tokens and JSON. For Drive/OneDrive, JSON with refresh_token will auto-refresh the access token. See Description."}),
 
                 # Local section
-                "save_to_local": ("BOOLEAN", {"default": False, "socketless": True, "label_on": "Enabled", "label_off": "Disabled", "tooltip": "Section: Save to Local."}),
-                "local_folder_path": ("STRING", {"default": "", "placeholder": "local/subfolder*", "tooltip": "Required when local save is enabled. Subfolder(s) under the ComfyUI output directory."}),
+                "save_to_local": ("BOOLEAN", {"default": False, "socketless": True, "label_on": "Enabled", "label_off": "Disabled", "tooltip": "Write PNGs to the ComfyUI output directory (in addition to cloud when enabled)."}),
+                "local_folder_path": ("STRING", {"default": "", "placeholder": "local/subfolder*", "tooltip": "When local save is enabled, writes under this subfolder of the ComfyUI output directory. Created if missing."}),
             },
             "hidden": {
                 "prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"
@@ -67,19 +67,29 @@ class SaveImageExtended:
 
     CATEGORY = "image"
     DESCRIPTION = (
-        "Save Image Extended: Saves the input images to your chosen cloud provider or local ComfyUI output directory.\n"
+        "Save images locally and/or upload to a cloud provider.\n"
         "\n"
-        "Provider input formats:\n"
-        "- AWS S3: bucket_link = 's3://<bucket>[/prefix]'; cloud_api_key = JSON {access_key, secret_key, region} or 'ACCESS:SECRET[:REGION]'.\n"
-        "- S3-Compatible: bucket_link = 'https://<endpoint>/<bucket>[/prefix]'; cloud_api_key = same as S3.\n"
-        "- Google Cloud Storage: bucket_link = 'gs://<bucket>[/prefix]' or '<bucket>[/prefix]'; cloud_api_key = service account JSON (string) or path to JSON (leave empty for ADC).\n"
-        "- Azure Blob Storage: bucket_link = connection string OR 'https://<account>.blob.core.windows.net/<container>[/prefix]'; cloud_api_key = connection string or account key/SAS when using URL.\n"
-        "- Backblaze B2: bucket_link = 'b2://<bucket>[/prefix]' or '<bucket>[/prefix]'; cloud_api_key = 'KEY_ID:APP_KEY'.\n"
-        "- Google Drive: bucket_link = '/MyFolder/Sub' path OR 'drive://<folderId>/<optional/subpath>'; cloud_api_key = OAuth2 access token with Drive scope.\n"
-        "- Dropbox: bucket_link = '/base/path' under Dropbox; cloud_api_key = access token.\n"
-        "- OneDrive: bucket_link = '/base/path' under OneDrive root; cloud_api_key = OAuth2 access token.\n"
-        "- FTP: bucket_link = 'ftp://user:pass@host[:port]/basepath'; cloud_api_key not used.\n"
-        "- Supabase Storage: bucket_link = '<bucket_name>'; cloud_api_key = JSON {url, key} or 'url|key'.\n"
+        "How it works:\n"
+        "- Local: Saves PNG files under the ComfyUI output directory (only if 'Save to Local' is enabled).\n"
+        "- Cloud: Uploads all images in one batch per run (only if 'Save to Cloud' is enabled).\n"
+        "- Result: UI shows local files; cloud upload details are returned in the node output under 'cloud'.\n"
+        "\n"
+        "Cloud provider examples:\n"
+        "- AWS S3 → bucket_link: s3://my-bucket/prefix | cloud_api_key: JSON {access_key, secret_key, region} or 'ACCESS:SECRET[:REGION]'.\n"
+        "- S3-Compatible → bucket_link: https://endpoint.example.com/my-bucket/prefix | cloud_api_key: same as S3.\n"
+        "- Google Cloud Storage → bucket_link: gs://bucket/prefix or bucket/prefix | cloud_api_key: service-account JSON string or path (empty uses ADC).\n"
+        "- Azure Blob → bucket_link: connection string OR https://account.blob.core.windows.net/container/prefix | cloud_api_key: connection string or account key/SAS when using URL.\n"
+        "- Backblaze B2 → bucket_link: b2://bucket/prefix or bucket/prefix | cloud_api_key: KEY_ID:APP_KEY.\n"
+        "- Google Drive → bucket_link: /MyFolder/Sub OR drive://<folderId>/<optional/subpath> | cloud_api_key: OAuth2 access token.\n"
+        "- Dropbox → bucket_link: /base/path | cloud_api_key: access token.\n"
+        "- OneDrive → bucket_link: /base/path | cloud_api_key: OAuth2 access token.\n"
+        "- FTP → bucket_link: ftp://user:pass@host[:port]/basepath | cloud_api_key: not used.\n"
+        "- Supabase → bucket_link: <bucket_name> | cloud_api_key: JSON {url, key} or 'url|key'.\n"
+        "\n"
+        "Token refresh (optional):\n"
+        "- Google Drive cloud_api_key JSON: {client_id, client_secret, refresh_token} (optional access_token).\n"
+        "- OneDrive cloud_api_key JSON: {client_id, client_secret, refresh_token, tenant='common'|'consumers'|'organizations', redirect_uri?}.\n"
+        "When provided, a fresh access token is obtained automatically before uploading.\n"
     )
 
     @classmethod

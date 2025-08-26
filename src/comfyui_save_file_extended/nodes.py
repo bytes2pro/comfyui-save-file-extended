@@ -1,6 +1,6 @@
 from inspect import cleandoc
 
-from .image_extended import SaveImageExtended
+from .save_image_extended import SaveImageExtended
 
 
 class Example:
