@@ -181,7 +181,7 @@ class SaveImageExtended:
         total = len(images)
         try:
             PromptServer.instance.send_sync(
-                "comfyui.savefileextended.status",
+                "comfyui.saveimageextended.status",
                 {"phase": "start", "total": total, "provider": cloud_provider if save_to_cloud else None}
             )
         except Exception:
@@ -224,7 +224,7 @@ class SaveImageExtended:
                 else:
                     try:
                         PromptServer.instance.send_sync(
-                            "comfyui.savefileextended.status",
+                            "comfyui.saveimageextended.status",
                             {"phase": "progress", "where": "local", "current": counter, "total": total, "filename": file}
                         )
                     except Exception:
@@ -244,7 +244,7 @@ class SaveImageExtended:
                     sent_bytes["n"] += delta
                     try:
                         PromptServer.instance.send_sync(
-                            "comfyui.savefileextended.status",
+                            "comfyui.saveimageextended.status",
                             {"phase": "progress", "where": "cloud", "bytes_done": sent_bytes["n"], "bytes_total": total_bytes, "filename": info.get("filename"), "provider": cloud_provider}
                         )
                     except Exception:
@@ -253,7 +253,7 @@ class SaveImageExtended:
                     def _progress_cb(info: dict):
                         try:
                             PromptServer.instance.send_sync(
-                                "comfyui.savefileextended.status",
+                                "comfyui.saveimageextended.status",
                                 {"phase": "progress", "where": "cloud", "current": (info.get("index", 0) + 1), "total": len(cloud_items), "filename": info.get("path"), "provider": cloud_provider}
                             )
                         except Exception:
@@ -271,7 +271,7 @@ class SaveImageExtended:
                         sent += 1
                         try:
                             PromptServer.instance.send_sync(
-                                "comfyui.savefileextended.status",
+                                "comfyui.saveimageextended.status",
                                 {"phase": "progress", "where": "cloud", "current": sent, "total": len(cloud_items), "filename": info.get("path"), "provider": cloud_provider}
                             )
                         except Exception:
@@ -280,7 +280,7 @@ class SaveImageExtended:
                 print(f"[SaveImageExtended] Cloud batch upload failed: {e}")
                 try:
                     PromptServer.instance.send_sync(
-                        "comfyui.savefileextended.status",
+                        "comfyui.saveimageextended.status",
                         {"phase": "error", "message": str(e)}
                     )
                 except Exception:
@@ -289,7 +289,7 @@ class SaveImageExtended:
             else:
                 try:
                     PromptServer.instance.send_sync(
-                        "comfyui.savefileextended.status",
+                        "comfyui.saveimageextended.status",
                         {"phase": "complete", "count_local": len(results), "count_cloud": len(cloud_results), "provider": cloud_provider}
                     )
                 except Exception:
