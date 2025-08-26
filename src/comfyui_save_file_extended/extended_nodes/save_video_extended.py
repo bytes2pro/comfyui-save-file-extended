@@ -25,15 +25,37 @@ class SaveWEBMExtended:
 
     @classmethod
     def INPUT_TYPES(s):
-        return {"required":
-                    {"images": ("IMAGE", ),
-                     "filename_prefix": ("STRING", {"default": "ComfyUI"}),
-                     "codec": (["vp9", "av1"],),
-                     "fps": ("FLOAT", {"default": 24.0, "min": 0.01, "max": 1000.0, "step": 0.01}),
-                     "crf": ("FLOAT", {"default": 32.0, "min": 0, "max": 63.0, "step": 1, "tooltip": "Higher crf means lower quality with a smaller file size, lower crf means higher quality higher filesize."}),
-                     },
-                "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
-                }
+        return {
+            "required": {
+                "images": ("IMAGE", ),
+                "filename_prefix": ("STRING", {"default": "video/ComfyUI"}),
+                "codec": (["vp9", "av1"], {}),
+                "fps": ("FLOAT", {"default": 24.0, "min": 0.01, "max": 1000.0, "step": 0.01}),
+                "crf": ("FLOAT", {"default": 32.0, "min": 0, "max": 63.0, "step": 1, "tooltip": "Higher crf means lower quality with a smaller file size, lower crf means higher quality higher filesize."}),
+            },
+            "optional": {
+                "save_to_cloud": ("BOOLEAN", {"default": False, "socketless": True, "label_on": "Enabled", "label_off": "Disabled"}),
+                "cloud_provider": ([
+                    "AWS S3",
+                    "Google Cloud Storage",
+                    "Azure Blob Storage",
+                    "Backblaze B2",
+                    "Google Drive",
+                    "Dropbox",
+                    "OneDrive",
+                    "FTP",
+                    "Supabase Storage",
+                    "UploadThing",
+                    "S3-Compatible"
+                ], {"default": "AWS S3"}),
+                "bucket_link": ("STRING", {"default": ""}),
+                "cloud_folder_path": ("STRING", {"default": "outputs"}),
+                "cloud_api_key": ("STRING", {"default": ""}),
+                "save_to_local": ("BOOLEAN", {"default": True, "socketless": True, "label_on": "Enabled", "label_off": "Disabled"}),
+                "local_folder_path": ("STRING", {"default": ""}),
+            },
+            "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
+        }
 
     RETURN_TYPES = ()
     FUNCTION = "save_images"
@@ -44,20 +66,41 @@ class SaveWEBMExtended:
 
     EXPERIMENTAL = True
 
-    def save_images(self, images, codec, fps, filename_prefix, crf, prompt=None, extra_pnginfo=None):
+    def save_images(self, images, codec, fps, filename_prefix, crf, prompt=None, extra_pnginfo=None, save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path=""):
+        def _notify(kind: str, payload: dict):
+            try:
+                PromptServer.instance.send_sync(
+                    "comfyui.savevideoextended.status",
+                    {"phase": kind, **payload}
+                )
+            except Exception:
+                pass
+
         filename_prefix += self.prefix_append
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])
 
-        file = f"{filename}_{counter:05}_.webm"
-        container = av.open(os.path.join(full_output_folder, file), mode="w")
+        # Resolve local save directory and UI subfolder
+        local_save_dir = full_output_folder
+        ui_subfolder = subfolder
+        if save_to_local:
+            local_save_dir = os.path.join(full_output_folder, local_folder_path or "")
+            try:
+                os.makedirs(local_save_dir, exist_ok=True)
+            except Exception:
+                local_save_dir = full_output_folder
+            ui_subfolder = os.path.join(subfolder, local_folder_path) if subfolder else local_folder_path
 
+        file = f"{filename}-{uuid4()}.webm"
+        out_path = os.path.join(local_save_dir, file)
+
+        _notify("start", {"total": 1, "provider": cloud_provider if save_to_cloud else None})
+
+        container = av.open(out_path, mode="w")
         if prompt is not None:
             container.metadata["prompt"] = json.dumps(prompt)
-
         if extra_pnginfo is not None:
             for x in extra_pnginfo:
                 container.metadata[x] = json.dumps(extra_pnginfo[x])
-
         codec_map = {"vp9": "libvpx-vp9", "av1": "libsvtav1"}
         stream = container.add_stream(codec_map[codec], rate=Fraction(round(fps * 1000), 1000))
         stream.width = images.shape[-2]
@@ -67,7 +110,6 @@ class SaveWEBMExtended:
         stream.options = {'crf': str(crf)}
         if codec == "av1":
             stream.options["preset"] = "6"
-
         for frame in images:
             frame = av.VideoFrame.from_ndarray(torch.clamp(frame[..., :3] * 255, min=0, max=255).to(device=torch.device("cpu"), dtype=torch.uint8).numpy(), format="rgb24")
             for packet in stream.encode(frame):
@@ -75,13 +117,47 @@ class SaveWEBMExtended:
         container.mux(stream.encode())
         container.close()
 
-        results: list[FileLocator] = [{
-            "filename": file,
-            "subfolder": subfolder,
-            "type": self.type
-        }]
+        results: list[FileLocator] = []
+        cloud_results = []
+        if save_to_local:
+            results.append({
+                "filename": file,
+                "subfolder": ui_subfolder,
+                "type": self.type
+            })
+            _notify("progress", {"where": "local", "current": 1, "total": 1, "filename": file})
 
-        return {"ui": {"images": results, "animated": (True,)}}  # TODO: frontend side
+        if save_to_cloud:
+            try:
+                with open(out_path, "rb") as f:
+                    data = f.read()
+                Uploader = get_uploader(cloud_provider)
+                sent_bytes = {"n": 0}
+                def _bytes_cb(info: dict):
+                    delta = int(info.get("delta") or 0)
+                    sent_bytes["n"] += delta
+                    _notify("progress", {"where": "cloud", "bytes_done": sent_bytes["n"], "bytes_total": len(data), "filename": info.get("filename"), "provider": cloud_provider})
+                def _progress_cb(info: dict):
+                    _notify("progress", {"where": "cloud", "current": (info.get("index", 0) + 1), "total": 1, "filename": info.get("path"), "provider": cloud_provider})
+                try:
+                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], bucket_link, cloud_folder_path, cloud_api_key, _progress_cb, _bytes_cb)
+                except TypeError:
+                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], bucket_link, cloud_folder_path, cloud_api_key, _progress_cb)
+            except Exception as e:
+                _notify("error", {"message": str(e)})
+            else:
+                _notify("complete", {"count_local": len(results), "count_cloud": len(cloud_results), "provider": cloud_provider})
+        else:
+            _notify("complete", {"count_local": len(results), "count_cloud": 0, "provider": None})
+
+        # If local is disabled, remove the temp file
+        if not save_to_local:
+            try:
+                os.remove(out_path)
+            except Exception:
+                pass
+
+        return {"ui": {"images": results, "animated": (True,)}, "cloud": cloud_results}
 
 
 class SaveVideoExtended(ComfyNodeABC):

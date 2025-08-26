@@ -15,7 +15,7 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
             const indexOf = (name) =>
                 (this.widgets || []).findIndex((w) => w.name === name);
             const refresh = () => {
-                if (nodeName === "SaveImageExtended") {
+                if (nodeName === "SaveImageExtended" || nodeName === "SaveAudioExtended" || nodeName === "SaveVideoExtended" || nodeName === "SaveWEBMExtended") {
                     const saveToCloud = !!get("save_to_cloud")?.value;
                     const saveToLocal = !!get("save_to_local")?.value;
                     setHidden(groups.cloud, !saveToCloud);
@@ -25,7 +25,7 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
                     this._cse_ui.localVisible = saveToLocal;
                     this._cse_ui.cloudStartIdx = indexOf("cloud_provider");
                     this._cse_ui.localStartIdx = indexOf("local_folder_path");
-                } else if (nodeName === "LoadImageExtended") {
+                } else if (nodeName === "LoadImageExtended" || nodeName === "LoadAudioExtended" || nodeName === "LoadVideoExtended") {
                     const fromCloud = !!get("load_from_cloud")?.value;
                     setHidden(groups.cloud, !fromCloud);
                     this._cse_ui = this._cse_ui || {};
@@ -47,10 +47,10 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
                 };
             };
 
-            if (nodeName === "SaveImageExtended") {
+            if (nodeName === "SaveImageExtended" || nodeName === "SaveAudioExtended" || nodeName === "SaveVideoExtended" || nodeName === "SaveWEBMExtended") {
                 attach("save_to_cloud");
                 attach("save_to_local");
-            } else if (nodeName === "LoadImageExtended") {
+            } else if (nodeName === "LoadImageExtended" || nodeName === "LoadAudioExtended" || nodeName === "LoadVideoExtended") {
                 attach("load_from_cloud");
             }
 
@@ -132,7 +132,7 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
                     ctx.restore();
                 };
 
-                if (nodeName === "SaveImageExtended") {
+                if (nodeName === "SaveImageExtended" || nodeName === "SaveAudioExtended" || nodeName === "SaveVideoExtended" || nodeName === "SaveWEBMExtended") {
                     if (meta.cloudVisible) {
                         drawGroupBg("Cloud", [
                             "cloud_provider",
@@ -148,7 +148,7 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
                         ]);
                         drawHeader("Local", meta.localStartIdx);
                     }
-                } else if (nodeName === "LoadImageExtended") {
+                } else if (nodeName === "LoadImageExtended" || nodeName === "LoadAudioExtended" || nodeName === "LoadVideoExtended") {
                     if (meta.cloudVisible) {
                         drawGroupBg("Cloud", [
                             "cloud_provider",
@@ -174,7 +174,50 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
         ],
         local: ["local_folder_path"],
     });
+    enhance("SaveAudioExtended", {
+        cloud: [
+            "cloud_provider",
+            "bucket_link",
+            "cloud_folder_path",
+            "cloud_api_key",
+        ],
+        local: ["local_folder_path"],
+    });
+    enhance("SaveVideoExtended", {
+        cloud: [
+            "cloud_provider",
+            "bucket_link",
+            "cloud_folder_path",
+            "cloud_api_key",
+        ],
+        local: ["local_folder_path"],
+    });
+    enhance("SaveWEBMExtended", {
+        cloud: [
+            "cloud_provider",
+            "bucket_link",
+            "cloud_folder_path",
+            "cloud_api_key",
+        ],
+        local: ["local_folder_path"],
+    });
     enhance("LoadImageExtended", {
+        cloud: [
+            "cloud_provider",
+            "bucket_link",
+            "cloud_folder_path",
+            "cloud_api_key",
+        ],
+    });
+    enhance("LoadAudioExtended", {
+        cloud: [
+            "cloud_provider",
+            "bucket_link",
+            "cloud_folder_path",
+            "cloud_api_key",
+        ],
+    });
+    enhance("LoadVideoExtended", {
         cloud: [
             "cloud_provider",
             "bucket_link",
