@@ -212,6 +212,18 @@ class SaveImageExtended:
         if save_to_cloud and cloud_items:
             try:
                 Uploader = get_uploader(cloud_provider)
+                total_bytes = sum(len(it["content"]) for it in cloud_items)
+                sent_bytes = {"n": 0}
+                def _bytes_cb(info: dict):
+                    delta = int(info.get("delta") or 0)
+                    sent_bytes["n"] += delta
+                    try:
+                        PromptServer.instance.send_sync(
+                            "comfyui.savefileextended.status",
+                            {"phase": "progress", "where": "cloud", "bytes_done": sent_bytes["n"], "bytes_total": total_bytes, "filename": info.get("filename"), "provider": cloud_provider}
+                        )
+                    except Exception:
+                        pass
                 if hasattr(Uploader, "upload_many"):
                     def _progress_cb(info: dict):
                         try:
@@ -221,7 +233,10 @@ class SaveImageExtended:
                             )
                         except Exception:
                             pass
-                    cloud_results = Uploader.upload_many(cloud_items, bucket_link, cloud_folder_path, cloud_api_key, _progress_cb)
+                    try:
+                        cloud_results = Uploader.upload_many(cloud_items, bucket_link, cloud_folder_path, cloud_api_key, _progress_cb, _bytes_cb)
+                    except TypeError:
+                        cloud_results = Uploader.upload_many(cloud_items, bucket_link, cloud_folder_path, cloud_api_key, _progress_cb)
                 else:
                     # Fallback to single uploads if batch not supported
                     sent = 0

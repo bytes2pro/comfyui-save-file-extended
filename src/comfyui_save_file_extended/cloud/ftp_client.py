@@ -49,7 +49,7 @@ class Uploader:
         }
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         host, port, user, password, prefix = _parse_ftp(bucket_link, cloud_folder_path)
 
         results: list[Dict[str, Any]] = []
@@ -68,7 +68,18 @@ class Uploader:
             for idx, item in enumerate(items):
                 filename = item["filename"]
                 body = item["content"]
-                ftp.storbinary(f"STOR {filename}", io.BytesIO(body))
+                if byte_callback:
+                    bio = io.BytesIO(body)
+                    sent = {"n": 0}
+                    def _cb(chunk):
+                        sent["n"] += len(chunk)
+                        try:
+                            byte_callback({"delta": len(chunk), "sent": sent["n"], "total": len(body), "index": idx, "filename": filename, "path": f"/{prefix}/{filename}" if prefix else f"/{filename}"})
+                        except Exception:
+                            pass
+                    ftp.storbinary(f"STOR {filename}", bio, callback=_cb)
+                else:
+                    ftp.storbinary(f"STOR {filename}", io.BytesIO(body))
                 path = f"/{prefix}/{filename}" if prefix else f"/{filename}"
                 results.append({"provider": "FTP", "bucket": host or "", "path": path, "url": None})
                 if progress_callback:
@@ -96,7 +107,7 @@ class Uploader:
         return bio.getvalue()
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         host, port, user, password, prefix = _parse_ftp(bucket_link, cloud_folder_path)
 
         results: list[Dict[str, Any]] = []
@@ -108,7 +119,18 @@ class Uploader:
                     ftp.cwd(d)
             for idx, name in enumerate(keys):
                 bio = io.BytesIO()
-                ftp.retrbinary(f"RETR {name}", bio.write)
+                if byte_callback:
+                    sent = {"n": 0}
+                    def _cb(chunk):
+                        bio.write(chunk)
+                        sent["n"] += len(chunk)
+                        try:
+                            byte_callback({"delta": len(chunk), "sent": sent["n"], "total": None, "index": idx, "filename": name, "path": f"/{prefix}/{name}" if prefix else f"/{name}"})
+                        except Exception:
+                            pass
+                    ftp.retrbinary(f"RETR {name}", _cb)
+                else:
+                    ftp.retrbinary(f"RETR {name}", bio.write)
                 results.append({"filename": name, "content": bio.getvalue()})
                 if progress_callback:
                     try:

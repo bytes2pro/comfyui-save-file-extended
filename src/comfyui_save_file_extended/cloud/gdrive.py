@@ -119,7 +119,7 @@ class Uploader:
 
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         if not api_key:
             raise ValueError("Google Drive api_key must be an OAuth2 access token with drive scope")
 
@@ -148,14 +148,39 @@ class Uploader:
         for idx, item in enumerate(items):
             filename = item["filename"]
             body = item["content"]
-            metadata = {"name": filename, "parents": [parent_id]}
-            files = {
-                'metadata': ('metadata', json.dumps(metadata), 'application/json; charset=UTF-8'),
-                'file': ('file', body, 'image/png')
-            }
-            resp = requests.post('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', headers=headers, files=files)
-            resp.raise_for_status()
-            data = resp.json()
+            if byte_callback and len(body) > 5 * 1024 * 1024:
+                init = requests.post(
+                    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
+                    headers={**headers, 'X-Upload-Content-Type': 'image/png', 'Content-Type': 'application/json; charset=UTF-8'},
+                    data=json.dumps({"name": filename, "parents": [parent_id]})
+                )
+                init.raise_for_status()
+                session_uri = init.headers.get('Location')
+                sent = 0
+                CHUNK = 8 * 1024 * 1024
+                last_resp = None
+                while sent < len(body):
+                    chunk = body[sent:sent+CHUNK]
+                    end = sent + len(chunk) - 1
+                    put = requests.put(session_uri, headers={**headers, 'Content-Type': 'image/png', 'Content-Length': str(len(chunk)), 'Content-Range': f'bytes {sent}-{end}/{len(body)}'}, data=chunk)
+                    if put.status_code not in (200, 201, 308):
+                        put.raise_for_status()
+                    sent += len(chunk)
+                    last_resp = put
+                    try:
+                        byte_callback({"delta": len(chunk), "sent": sent, "total": len(body), "index": idx, "filename": filename, "path": f"{path_prefix}/{filename}" if path_prefix else filename})
+                    except Exception:
+                        pass
+                data = last_resp.json() if (last_resp is not None and last_resp.content) else {"id": None}
+            else:
+                metadata = {"name": filename, "parents": [parent_id]}
+                files = {
+                    'metadata': ('metadata', json.dumps(metadata), 'application/json; charset=UTF-8'),
+                    'file': ('file', body, 'image/png')
+                }
+                resp = requests.post('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', headers=headers, files=files)
+                resp.raise_for_status()
+                data = resp.json()
             results.append({"provider": "Google Drive", "bucket": parent_id, "path": f"{path_prefix}/{filename}" if path_prefix else filename, "url": f"https://drive.google.com/file/d/{data.get('id')}/view"})
             if progress_callback:
                 try:
@@ -196,7 +221,7 @@ class Uploader:
         return resp.content
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         access_token = _get_access_token(api_key)
         parsed = urlparse(bucket_link)
         base_path = parsed.path if parsed.scheme != "drive" else ""
@@ -219,9 +244,25 @@ class Uploader:
             if not files:
                 raise FileNotFoundError(name)
             file_id = files[0]["id"]
-            resp = requests.get(f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media", headers=headers)
+            resp = requests.get(f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media", headers=headers, stream=True)
             resp.raise_for_status()
-            results.append({"filename": name, "content": resp.content})
+            if byte_callback:
+                parts = []
+                sent = 0
+                total = resp.headers.get('Content-Length') and int(resp.headers.get('Content-Length'))
+                for chunk in resp.iter_content(chunk_size=8 * 1024 * 1024):
+                    if not chunk:
+                        break
+                    parts.append(chunk)
+                    sent += len(chunk)
+                    try:
+                        byte_callback({"delta": len(chunk), "sent": sent, "total": total, "index": idx, "filename": name, "path": f"{path_prefix}/{name}" if path_prefix else name})
+                    except Exception:
+                        pass
+                content = b"".join(parts)
+            else:
+                content = resp.content
+            results.append({"filename": name, "content": content})
             if progress_callback:
                 try:
                     progress_callback({"index": idx, "filename": name, "path": f"{path_prefix}/{name}" if path_prefix else name})

@@ -44,11 +44,30 @@ app.registerExtension({
                 list.removeChild(list.firstChild);
         }
 
-        function fmtProgress(where, current, total, filename, provider) {
-            const pct = total ? Math.round((current / total) * 100) : 0;
+        function fmtProgress(
+            where,
+            current,
+            total,
+            filename,
+            provider,
+            bytesDone,
+            bytesTotal
+        ) {
+            const useBytes =
+                bytesDone !== undefined &&
+                bytesTotal !== undefined &&
+                bytesTotal;
+            const pct = useBytes
+                ? Math.round((bytesDone / bytesTotal) * 100)
+                : total
+                ? Math.round((current / total) * 100)
+                : 0;
             const whereTxt = where ? where : "";
             const prov = provider ? ` [${provider}]` : "";
-            return `${whereTxt} ${current}/${total} (${pct}%) ${
+            const base = useBytes
+                ? `${bytesDone}/${bytesTotal} bytes`
+                : `${current}/${total}`;
+            return `${whereTxt} ${base} (${pct}%) ${
                 filename ? `- ${filename}` : ""
             }${prov}`;
         }
@@ -69,7 +88,9 @@ app.registerExtension({
                         d.current,
                         d.total,
                         d.filename,
-                        d.provider
+                        d.provider,
+                        d.bytes_done,
+                        d.bytes_total
                     )}`
                 );
             } else if (d.phase === "complete") {
@@ -99,7 +120,9 @@ app.registerExtension({
                         d.current,
                         d.total,
                         d.filename,
-                        d.provider
+                        d.provider,
+                        d.bytes_done,
+                        d.bytes_total
                     )}`
                 );
             } else if (d.phase === "complete") {

@@ -147,7 +147,22 @@ class LoadImageExtended:
                             )
                         except Exception:
                             pass
-                    results = Uploader.download_many(paths, bucket_link, cloud_folder_path, cloud_api_key, _progress_cb)
+                    bytes_done = {"n": 0}
+                    # total bytes might be unknown; providers may pass 'total' per item
+                    def _bytes_cb(info: dict):
+                        delta = int(info.get("delta") or 0)
+                        bytes_done["n"] += delta
+                        try:
+                            PromptServer.instance.send_sync(
+                                "comfyui.loadimageextended.status",
+                                {"phase": "progress", "where": "cloud", "bytes_done": bytes_done["n"], "bytes_total": info.get("aggregate_total"), "filename": info.get("filename"), "provider": cloud_provider}
+                            )
+                        except Exception:
+                            pass
+                    try:
+                        results = Uploader.download_many(paths, bucket_link, cloud_folder_path, cloud_api_key, _progress_cb, _bytes_cb)
+                    except TypeError:
+                        results = Uploader.download_many(paths, bucket_link, cloud_folder_path, cloud_api_key, _progress_cb)
                 else:
                     results = [{"filename": name, "content": Uploader.download(name, bucket_link, cloud_folder_path, cloud_api_key)} for name in paths]
             except Exception as e:

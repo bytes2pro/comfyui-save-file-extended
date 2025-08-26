@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
@@ -86,7 +87,7 @@ class Uploader:
         }
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         s3 = Uploader._create_client(api_key)
 
         results: list[Dict[str, Any]] = []
@@ -94,7 +95,17 @@ class Uploader:
             filename = item["filename"]
             body = item["content"]
             bucket, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, filename)
-            s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType="image/png")
+            if byte_callback:
+                sent = {"n": 0}
+                def _cb(n):
+                    sent["n"] += n
+                    try:
+                        byte_callback({"delta": n, "sent": sent["n"], "total": len(body), "index": idx, "filename": filename, "path": key})
+                    except Exception:
+                        pass
+                s3.upload_fileobj(io.BytesIO(body), bucket, key, Callback=_cb, ExtraArgs={"ContentType": "image/png"})
+            else:
+                s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType="image/png")
             url = f"https://{bucket}.s3.amazonaws.com/{key}"
             results.append({"provider": "AWS S3", "bucket": bucket, "path": key, "url": url})
             if progress_callback:
@@ -112,14 +123,30 @@ class Uploader:
         return obj["Body"].read()
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         s3 = Uploader._create_client(api_key)
 
         results: list[Dict[str, Any]] = []
         for idx, name in enumerate(keys):
             bucket, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, name)
             obj = s3.get_object(Bucket=bucket, Key=key)
-            content = obj["Body"].read()
+            body = obj["Body"]
+            if byte_callback:
+                chunks = []
+                sent = 0
+                while True:
+                    data = body.read(8 * 1024 * 1024)
+                    if not data:
+                        break
+                    chunks.append(data)
+                    sent += len(data)
+                    try:
+                        byte_callback({"delta": len(data), "sent": sent, "total": obj.get("ContentLength"), "index": idx, "filename": name, "path": key})
+                    except Exception:
+                        pass
+                content = b"".join(chunks)
+            else:
+                content = body.read()
             results.append({"filename": name, "content": content})
             if progress_callback:
                 try:

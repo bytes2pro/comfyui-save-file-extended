@@ -51,7 +51,7 @@ class Uploader:
         }
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         client = Uploader._get_client(api_key)
         bucket, _ = _parse_bucket_and_path(bucket_link, cloud_folder_path, "dummy")
         results: list[Dict[str, Any]] = []
@@ -60,6 +60,11 @@ class Uploader:
             body = item["content"]
             _, path = _parse_bucket_and_path(bucket_link, cloud_folder_path, filename)
             client.storage.from_(bucket).upload(path, body, file_options={"content-type": "image/png", "upsert": True})
+            if byte_callback:
+                try:
+                    byte_callback({"delta": len(body), "sent": len(body), "total": len(body), "index": idx, "filename": filename, "path": path})
+                except Exception:
+                    pass
             public_url = client.storage.from_(bucket).get_public_url(path)
             results.append({"provider": "Supabase Storage", "bucket": bucket, "path": path, "url": public_url})
             if progress_callback:
@@ -78,13 +83,18 @@ class Uploader:
         return data
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         client = Uploader._get_client(api_key)
         bucket, _ = _parse_bucket_and_path(bucket_link, cloud_folder_path, "dummy")
         results: list[Dict[str, Any]] = []
         for idx, name in enumerate(keys):
             _, path = _parse_bucket_and_path(bucket_link, cloud_folder_path, name)
             data = client.storage.from_(bucket).download(path)
+            if byte_callback:
+                try:
+                    byte_callback({"delta": len(data), "sent": len(data), "total": len(data), "index": idx, "filename": name, "path": path})
+                except Exception:
+                    pass
             results.append({"filename": name, "content": data})
             if progress_callback:
                 try:

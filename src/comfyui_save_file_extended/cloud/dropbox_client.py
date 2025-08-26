@@ -50,7 +50,7 @@ class Uploader:
         }
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         dbx = Uploader._get_dbx(api_key)
 
         # Ensure folder path exists once
@@ -70,7 +70,31 @@ class Uploader:
             filename = item["filename"]
             body = item["content"]
             path = _resolve_path(bucket_link, cloud_folder_path, filename)
-            dbx.files_upload(body, path, mode=dropbox.files.WriteMode.overwrite, mute=True)
+            if byte_callback and len(body) > 4 * 1024 * 1024:
+                CHUNK = 4 * 1024 * 1024
+                session_start = dbx.files_upload_session_start(body[:CHUNK])
+                sent = CHUNK
+                try:
+                    byte_callback({"delta": CHUNK, "sent": sent, "total": len(body), "index": idx, "filename": filename, "path": path})
+                except Exception:
+                    pass
+                cursor = dropbox.files.UploadSessionCursor(session_id=session_start.session_id, offset=sent)
+                commit = dropbox.files.CommitInfo(path, mode=dropbox.files.WriteMode.overwrite)
+                while sent < len(body):
+                    chunk = body[sent:sent+CHUNK]
+                    if (len(body) - sent) <= CHUNK:
+                        dbx.files_upload_session_finish(chunk, cursor, commit)
+                        sent += len(chunk)
+                    else:
+                        dbx.files_upload_session_append_v2(chunk, cursor)
+                        sent += len(chunk)
+                        cursor.offset = sent
+                    try:
+                        byte_callback({"delta": len(chunk), "sent": sent, "total": len(body), "index": idx, "filename": filename, "path": path})
+                    except Exception:
+                        pass
+            else:
+                dbx.files_upload(body, path, mode=dropbox.files.WriteMode.overwrite, mute=True)
             results.append({"provider": "Dropbox", "bucket": "", "path": path, "url": None})
             if progress_callback:
                 try:
@@ -87,13 +111,28 @@ class Uploader:
         return resp.content
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         dbx = Uploader._get_dbx(api_key)
         results: list[Dict[str, Any]] = []
         for idx, name in enumerate(keys):
             path = _resolve_path(bucket_link, cloud_folder_path, name)
             metadata, resp = dbx.files_download(path)
-            results.append({"filename": name, "content": resp.content})
+            if byte_callback:
+                content_parts = []
+                sent = 0
+                for chunk in resp.iter_content(chunk_size=4 * 1024 * 1024):
+                    if not chunk:
+                        break
+                    content_parts.append(chunk)
+                    sent += len(chunk)
+                    try:
+                        byte_callback({"delta": len(chunk), "sent": sent, "total": resp.headers.get('Content-Length') and int(resp.headers.get('Content-Length')), "index": idx, "filename": name, "path": path})
+                    except Exception:
+                        pass
+                content = b"".join(content_parts)
+            else:
+                content = resp.content
+            results.append({"filename": name, "content": content})
             if progress_callback:
                 try:
                     progress_callback({"index": idx, "filename": name, "path": path})

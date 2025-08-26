@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 from typing import Any, Dict, Tuple
 from urllib.parse import urlparse
@@ -54,7 +55,7 @@ class Uploader:
         }
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         client = Uploader._create_client(api_key)
 
         bucket_name, _ = _parse_bucket_and_key(bucket_link, cloud_folder_path, "dummy")
@@ -65,7 +66,23 @@ class Uploader:
             body = item["content"]
             _, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, filename)
             blob = bucket.blob(key)
-            blob.upload_from_string(body, content_type="image/png")
+            if byte_callback:
+                blob.chunk_size = 8 * 1024 * 1024
+                with blob.open("wb") as f:
+                    bio = io.BytesIO(body)
+                    sent = 0
+                    while True:
+                        chunk = bio.read(8 * 1024 * 1024)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        sent += len(chunk)
+                        try:
+                            byte_callback({"delta": len(chunk), "sent": sent, "total": len(body), "index": idx, "filename": filename, "path": key})
+                        except Exception:
+                            pass
+            else:
+                blob.upload_from_string(body, content_type="image/png")
             results.append({"provider": "Google Cloud Storage", "bucket": bucket_name, "path": key, "url": blob.public_url})
             if progress_callback:
                 try:
@@ -84,17 +101,8 @@ class Uploader:
         return blob.download_as_bytes()
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
-        client: storage.Client
-        if api_key and api_key.strip().startswith("{"):
-            info = json.loads(api_key)
-            creds = service_account.Credentials.from_service_account_info(info)
-            client = storage.Client(credentials=creds, project=info.get("project_id"))
-        elif api_key and api_key.strip().endswith(".json"):
-            creds = service_account.Credentials.from_service_account_file(api_key.strip())
-            client = storage.Client(credentials=creds)
-        else:
-            client = storage.Client()
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
+        client = Uploader._create_client(api_key)
 
         bucket_name, _ = _parse_bucket_and_key(bucket_link, cloud_folder_path, "dummy")
         bucket = client.bucket(bucket_name)
@@ -102,7 +110,23 @@ class Uploader:
         for idx, name in enumerate(keys):
             _, key = _parse_bucket_and_key(bucket_link, cloud_folder_path, name)
             blob = bucket.blob(key)
-            content = blob.download_as_bytes()
+            if byte_callback:
+                content_parts = []
+                with blob.open("rb") as f:
+                    sent = 0
+                    while True:
+                        data = f.read(8 * 1024 * 1024)
+                        if not data:
+                            break
+                        content_parts.append(data)
+                        sent += len(data)
+                        try:
+                            byte_callback({"delta": len(data), "sent": sent, "total": blob.size, "index": idx, "filename": name, "path": key})
+                        except Exception:
+                            pass
+                content = b"".join(content_parts)
+            else:
+                content = blob.download_as_bytes()
             results.append({"filename": name, "content": content})
             if progress_callback:
                 try:

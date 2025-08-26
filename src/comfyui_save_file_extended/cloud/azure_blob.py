@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from typing import Any, Dict, Tuple
 from urllib.parse import urlparse
 
@@ -68,7 +69,7 @@ class Uploader:
         }
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         account_url, container, _ = _parse_container_and_blob(bucket_link, cloud_folder_path, "dummy")
 
         service_client = Uploader._create_service_client(bucket_link, api_key, account_url)
@@ -86,7 +87,22 @@ class Uploader:
             _, _, blob_name = _parse_container_and_blob(bucket_link, cloud_folder_path, filename)
             blob_client = container_client.get_blob_client(blob_name)
             content_settings = ContentSettings(content_type="image/png")
-            blob_client.upload_blob(body, overwrite=True, content_settings=content_settings)
+            if byte_callback and len(body) > 8 * 1024 * 1024:
+                # staged blocks
+                block_ids = []
+                chunk_size = 8 * 1024 * 1024
+                for bi in range(0, len(body), chunk_size):
+                    chunk = body[bi:bi+chunk_size]
+                    block_id = base64.b64encode(f"block-{idx}-{bi}".encode()).decode()
+                    blob_client.stage_block(block_id=block_id, data=chunk)
+                    block_ids.append(block_id)
+                    try:
+                        byte_callback({"delta": len(chunk), "sent": bi + len(chunk), "total": len(body), "index": idx, "filename": filename, "path": blob_name})
+                    except Exception:
+                        pass
+                blob_client.commit_block_list(block_ids, content_settings=content_settings)
+            else:
+                blob_client.upload_blob(body, overwrite=True, content_settings=content_settings)
             url = f"{service_client.url}/{container}/{blob_name}"
             results.append({"provider": "Azure Blob Storage", "bucket": container, "path": blob_name, "url": url})
             if progress_callback:
@@ -108,7 +124,7 @@ class Uploader:
         return downloader.readall()
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]: # type: ignore
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]: # type: ignore
         account_url, container, _ = _parse_container_and_blob(bucket_link, cloud_folder_path, "dummy")
 
         if "DefaultEndpointsProtocol=" in bucket_link:
@@ -125,7 +141,19 @@ class Uploader:
             _, _, blob_name = _parse_container_and_blob(bucket_link, cloud_folder_path, name)
             blob_client = service_client.get_blob_client(container=container, blob=blob_name)
             downloader = blob_client.download_blob()
-            content = downloader.readall()
+            if byte_callback:
+                parts = []
+                sent = 0
+                for data in downloader.chunks():
+                    parts.append(data)
+                    sent += len(data)
+                    try:
+                        byte_callback({"delta": len(data), "sent": sent, "total": downloader.size, "index": idx, "filename": name, "path": blob_name})
+                    except Exception:
+                        pass
+                content = b"".join(parts)
+            else:
+                content = downloader.readall()
             results.append({"filename": name, "content": content})
             if progress_callback:
                 try:

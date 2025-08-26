@@ -115,7 +115,7 @@ class Uploader:
         }
 
     @staticmethod
-    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
+    def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         if not api_key:
             raise ValueError("OneDrive api_key must be a valid OAuth 2.0 access token")
 
@@ -131,10 +131,35 @@ class Uploader:
         for idx, item in enumerate(items):
             filename = item["filename"]
             body = item["content"]
-            url = f"https://graph.microsoft.com/v1.0/me/drive/items/{parent_id}:/{filename}:/content"
-            resp = requests.put(url, headers=headers, data=body)
-            resp.raise_for_status()
-            data = resp.json()
+            if byte_callback and len(body) > 4 * 1024 * 1024:
+                session = requests.post(
+                    f"https://graph.microsoft.com/v1.0/me/drive/items/{parent_id}:/{filename}:/createUploadSession",
+                    headers=headers,
+                    json={"item": {"@microsoft.graph.conflictBehavior": "replace"}}
+                )
+                session.raise_for_status()
+                upload_url = session.json().get('uploadUrl')
+                CHUNK = 8 * 1024 * 1024
+                sent = 0
+                last_resp = None
+                while sent < len(body):
+                    chunk = body[sent:sent+CHUNK]
+                    end = sent + len(chunk) - 1
+                    r = requests.put(upload_url, headers={'Content-Length': str(len(chunk)), 'Content-Range': f'bytes {sent}-{end}/{len(body)}'}, data=chunk)
+                    if r.status_code not in (200, 201, 202):
+                        r.raise_for_status()
+                    sent += len(chunk)
+                    last_resp = r
+                    try:
+                        byte_callback({"delta": len(chunk), "sent": sent, "total": len(body), "index": idx, "filename": filename, "path": f"/{path_prefix}/{filename}" if path_prefix else f"/{filename}"})
+                    except Exception:
+                        pass
+                data = last_resp.json() if (last_resp is not None and last_resp.content) else {}
+            else:
+                url = f"https://graph.microsoft.com/v1.0/me/drive/items/{parent_id}:/{filename}:/content"
+                resp = requests.put(url, headers=headers, data=body)
+                resp.raise_for_status()
+                data = resp.json()
             results.append({"provider": "OneDrive", "bucket": "", "path": f"/{path_prefix}/{filename}" if path_prefix else f"/{filename}", "url": data.get("webUrl")})
             if progress_callback:
                 try:
@@ -154,16 +179,32 @@ class Uploader:
         return resp.content
 
     @staticmethod
-    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None) -> list[Dict[str, Any]]:
+    def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         access_token = _get_access_token(api_key)
         headers = _get_headers(api_key)
         results: list[Dict[str, Any]] = []
         for idx, name in enumerate(keys):
             path = _build_path(bucket_link, cloud_folder_path, name)
             url = f"https://graph.microsoft.com/v1.0/me/drive/root:{path}:/content"
-            resp = requests.get(url, headers=headers)
+            resp = requests.get(url, headers=headers, stream=True)
             resp.raise_for_status()
-            results.append({"filename": name, "content": resp.content})
+            if byte_callback:
+                parts = []
+                sent = 0
+                total = resp.headers.get('Content-Length') and int(resp.headers.get('Content-Length'))
+                for chunk in resp.iter_content(chunk_size=8 * 1024 * 1024):
+                    if not chunk:
+                        break
+                    parts.append(chunk)
+                    sent += len(chunk)
+                    try:
+                        byte_callback({"delta": len(chunk), "sent": sent, "total": total, "index": idx, "filename": name, "path": path})
+                    except Exception:
+                        pass
+                content = b"".join(parts)
+            else:
+                content = resp.content
+            results.append({"filename": name, "content": content})
             if progress_callback:
                 try:
                     progress_callback({"index": idx, "filename": name, "path": path})
