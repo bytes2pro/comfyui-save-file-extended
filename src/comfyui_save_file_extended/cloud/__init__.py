@@ -23,6 +23,7 @@ def get_uploader(provider_name: str):
         "OneDrive": ".onedrive:Uploader",
         "FTP": ".ftp_client:Uploader",
         "Supabase Storage": ".supabase_storage:Uploader",
+        "UploadThing": ".upload_thing:Uploader",
     }
 
     dotted = providers.get(provider_name)

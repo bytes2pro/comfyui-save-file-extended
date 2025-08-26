@@ -29,6 +29,7 @@ Both nodes:
 -   OneDrive
 -   FTP
 -   Supabase Storage
+-   UploadThing
 
 ## Key features
 

@@ -1,5 +1,4 @@
-from .load_image_extended import LoadImageExtended
-from .save_image_extended import SaveImageExtended
+from . import *
 
 # A dictionary that contains all nodes you want to export with their names
 # NOTE: names should be globally unique

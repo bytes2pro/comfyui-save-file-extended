@@ -41,6 +41,7 @@ class LoadImageExtended:
     - OneDrive → bucket_link: /base/path
     - FTP → bucket_link: ftp://user:pass@host[:port]/basepath
     - Supabase → bucket_link: <bucket_name>
+    - UploadThing → bucket_link: (leave blank). Provide UploadThing file keys or full utfs.io URLs. cloud_api_key: UploadThing secret key (sk_...) when using keys.
     """
     @classmethod
     def INPUT_TYPES(s):
@@ -67,11 +68,12 @@ class LoadImageExtended:
                     "OneDrive",
                     "FTP",
                     "Supabase Storage",
+                    "UploadThing",
                     "S3-Compatible"
                 ], {"default": "AWS S3", "tooltip": "Select the cloud provider. See Description for path formats."}),
-                "bucket_link": ("STRING", {"default": "", "placeholder": "Bucket URL / Connection String", "tooltip": "Origin identifier. Examples: s3://bucket/prefix, gs://bucket, https://account.blob.core.windows.net/container, b2://bucket, drive://folderId, /Dropbox/Path, /OneDrive/Path, ftp://user:pass@host/basepath, or Supabase bucket name."}),
+                "bucket_link": ("STRING", {"default": "", "placeholder": "Bucket URL / Connection String", "tooltip": "Origin identifier. Examples: s3://bucket/prefix, gs://bucket, https://account.blob.core.windows.net/container, b2://bucket, drive://folderId, /Dropbox/Path, /OneDrive/Path, ftp://user:pass@host/basepath, or Supabase bucket name. For UploadThing, leave blank (keys or full URLs are used)."}),
                 "cloud_folder_path": ("STRING", {"default": "", "placeholder": "prefix/folder (optional)", "tooltip": "Optional folder/key prefix. Keys in file_paths will be resolved under this prefix."}),
-                "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key", "tooltip": "Credentials. Supports tokens and JSON. Drive/OneDrive support JSON with refresh_token for auto-refresh."}),
+                "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key", "tooltip": "Credentials. Supports tokens and JSON. Drive/OneDrive support JSON with refresh_token for auto-refresh. For UploadThing, use your secret key (sk_...) when providing keys; full URLs don't require it."}),
             },
         }
 
