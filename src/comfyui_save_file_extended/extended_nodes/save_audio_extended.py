@@ -76,21 +76,14 @@ class SaveAudioExtended:
     CATEGORY = "audio"
 
     @classmethod
-    def VALIDATE_INPUTS(s,
-        audio,
-        filename_prefix="ComfyUI",
-        format="flac",
-        quality="128k",
-        save_to_cloud=False,
-        cloud_provider="AWS S3",
-        bucket_link="",
-        cloud_folder_path="outputs",
-        cloud_api_key="",
-        save_to_local=True,
-        local_folder_path="",
-        prompt=None,
-        extra_pnginfo=None,
-    ):
+    def VALIDATE_INPUTS(s, **kwargs):
+        format = kwargs.get("format", "flac")
+        quality = kwargs.get("quality", "128k")
+        save_to_cloud = kwargs.get("save_to_cloud", False)
+        save_to_local = kwargs.get("save_to_local", True)
+        cloud_provider = kwargs.get("cloud_provider", "AWS S3")
+        bucket_link = kwargs.get("bucket_link", "")
+        cloud_api_key = kwargs.get("cloud_api_key", "")
         fmt = (str(format) if format is not None else "").lower()
         q = str(quality) if quality is not None else ""
         if fmt == "mp3":

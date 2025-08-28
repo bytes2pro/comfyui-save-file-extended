@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import io
 import json
+import mimetypes
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
 
 import boto3
-import mimetypes
 
 from ._logging import log_exceptions
 
@@ -70,10 +70,13 @@ class Uploader:
     @log_exceptions
     def _create_client(api_key: str):
         access_key, secret_key, region = _parse_credentials(api_key)
-        client_kwargs: Dict[str, Any] = {}
-        if access_key and secret_key:
-            client_kwargs["aws_access_key_id"] = access_key
-            client_kwargs["aws_secret_access_key"] = secret_key
+        if not access_key or not secret_key:
+            raise ValueError("AWS credentials must be provided via api_key; fallback credentials are not allowed.")
+
+        client_kwargs: Dict[str, Any] = {
+            "aws_access_key_id": access_key,
+            "aws_secret_access_key": secret_key,
+        }
         if region:
             client_kwargs["region_name"] = region
         return boto3.client("s3", **client_kwargs)
@@ -98,7 +101,6 @@ class Uploader:
     @log_exceptions
     def upload_many(items: list[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
         s3 = Uploader._create_client(api_key)
-
         results: list[Dict[str, Any]] = []
         for idx, item in enumerate(items):
             filename = item["filename"]

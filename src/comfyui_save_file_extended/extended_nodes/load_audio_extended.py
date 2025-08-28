@@ -176,14 +176,27 @@ class LoadAudioExtended:
         return ({"waveform": out_wav, "sample_rate": int(sample_rate or 48000)}, )
 
     @classmethod
-    def IS_CHANGED(s, load_from_cloud, file_paths, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key="", local_file=None):
+    def IS_CHANGED(s, **kwargs):
         m = hashlib.sha256()
-        for part in [str(load_from_cloud), str(file_paths), str(cloud_provider), str(bucket_link), str(cloud_folder_path), str(local_file)]:
+        parts = [
+            str(kwargs.get("load_from_cloud", False)),
+            str(kwargs.get("file_paths", "")),
+            str(kwargs.get("cloud_provider", "AWS S3")),
+            str(kwargs.get("bucket_link", "")),
+            str(kwargs.get("cloud_folder_path", "")),
+            str(kwargs.get("local_file", "")),
+        ]
+        for part in parts:
             m.update(part.encode("utf-8"))
         return m.digest().hex()
 
     @classmethod
-    def VALIDATE_INPUTS(s, load_from_cloud, file_paths, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key="", local_file=None):
+    def VALIDATE_INPUTS(s, **kwargs):
+        load_from_cloud = kwargs.get("load_from_cloud", False)
+        file_paths = kwargs.get("file_paths", "")
+        cloud_provider = kwargs.get("cloud_provider", "AWS S3")
+        bucket_link = kwargs.get("bucket_link", "")
+        cloud_api_key = kwargs.get("cloud_api_key", "")
         if (not file_paths or not str(file_paths).strip()) and load_from_cloud:
             return "Provide one or more file paths (one per line)."
         if load_from_cloud:

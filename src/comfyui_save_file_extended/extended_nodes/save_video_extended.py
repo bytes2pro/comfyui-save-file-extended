@@ -66,6 +66,24 @@ class SaveWEBMExtended:
 
     EXPERIMENTAL = True
 
+    @classmethod
+    def VALIDATE_INPUTS(s, **kwargs):
+        save_to_cloud = kwargs.get("save_to_cloud", False)
+        save_to_local = kwargs.get("save_to_local", True)
+        cloud_provider = kwargs.get("cloud_provider", "AWS S3")
+        bucket_link = kwargs.get("bucket_link", "")
+        cloud_api_key = kwargs.get("cloud_api_key", "")
+        if not save_to_cloud and not save_to_local:
+            return "Enable at least one of 'Save to Cloud' or 'Save to Local'."
+        if save_to_cloud:
+            if not (cloud_provider and str(cloud_provider).strip()):
+                return "Cloud: 'cloud_provider' is required."
+            if not (bucket_link and bucket_link.strip()):
+                return "Cloud: 'bucket_link' is required."
+            if not (cloud_api_key and cloud_api_key.strip()):
+                return "Cloud: 'cloud_api_key' is required."
+        return True
+
     def save_images(self, images, codec, fps, filename_prefix, crf, prompt=None, extra_pnginfo=None, save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path=""):
         def _notify(kind: str, payload: dict):
             try:
@@ -209,6 +227,24 @@ class SaveVideoExtended(ComfyNodeABC):
 
     CATEGORY = "image/video"
     DESCRIPTION = "Saves the input images to your ComfyUI output directory."
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, **kwargs):
+        save_to_cloud = kwargs.get("save_to_cloud", False)
+        save_to_local = kwargs.get("save_to_local", True)
+        cloud_provider = kwargs.get("cloud_provider", "AWS S3")
+        bucket_link = kwargs.get("bucket_link", "")
+        cloud_api_key = kwargs.get("cloud_api_key", "")
+        if not save_to_cloud and not save_to_local:
+            return "Enable at least one of 'Save to Cloud' or 'Save to Local'."
+        if save_to_cloud:
+            if not (cloud_provider and str(cloud_provider).strip()):
+                return "Cloud: 'cloud_provider' is required."
+            if not (bucket_link and bucket_link.strip()):
+                return "Cloud: 'bucket_link' is required."
+            if not (cloud_api_key and cloud_api_key.strip()):
+                return "Cloud: 'cloud_api_key' is required."
+        return True
 
     def save_video(self, video: Input.Video, filename_prefix, format, codec, save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
         def _notify(kind: str, payload: dict):

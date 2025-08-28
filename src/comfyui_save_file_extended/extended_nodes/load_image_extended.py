@@ -152,7 +152,10 @@ class LoadImageExtended:
             except Exception:
                 pass
 
-        paths = [p.strip() for p in file_paths.splitlines() if p.strip()]
+        if local_file and not load_from_cloud:
+            paths = []
+        else:
+            paths = [p.strip() for p in file_paths.splitlines() if p.strip()]
         # If not using cloud and a local file is selected, use it when file_paths is empty
         if not load_from_cloud and not paths and local_file:
             paths = [local_file]
@@ -262,23 +265,42 @@ class LoadImageExtended:
         return (out_img, out_mask)
 
     @classmethod
-    def IS_CHANGED(s, load_from_cloud, file_paths, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key="", local_file=None):
-        # Hash input arguments to trigger reload when they change
+    def IS_CHANGED(s, **kwargs):
+        # Hash a subset of input arguments to trigger reload when they change
+        # Avoid hashing secrets like cloud_api_key
         m = hashlib.sha256()
-        for part in [str(load_from_cloud), str(file_paths), str(cloud_provider), str(bucket_link), str(cloud_folder_path), str(local_file)]:
+        parts = [
+            str(kwargs.get("load_from_cloud", False)),
+            str(kwargs.get("file_paths", "")),
+            str(kwargs.get("cloud_provider", "AWS S3")),
+            str(kwargs.get("bucket_link", "")),
+            str(kwargs.get("cloud_folder_path", "")),
+            str(kwargs.get("local_file", "")),
+        ]
+        for part in parts:
             m.update(part.encode("utf-8"))
         return m.digest().hex()
 
     @classmethod
-    def VALIDATE_INPUTS(s, load_from_cloud, file_paths, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key="", local_file=None):
+    def VALIDATE_INPUTS(s, **kwargs):
+        # Accept arbitrary kwargs so validation doesn't break when unrelated inputs (e.g. 'images') are present upstream/downstream.
+        load_from_cloud = kwargs.get("load_from_cloud", False)
+        file_paths = kwargs.get("file_paths", "")
+        cloud_provider = kwargs.get("cloud_provider", "AWS S3")
+        bucket_link = kwargs.get("bucket_link", "")
+        cloud_folder_path = kwargs.get("cloud_folder_path", "")  # kept for completeness
+        cloud_api_key = kwargs.get("cloud_api_key", "")
+        local_file = kwargs.get("local_file", None)
+
         # file_paths can be empty if a local_file is selected at runtime; validation here focuses on cloud fields
-        if (not file_paths or not file_paths.strip()) and load_from_cloud:
+        has_paths = bool(str(file_paths).strip()) or bool(local_file)
+        if not has_paths and load_from_cloud:
             return "Provide one or more file paths (one per line)."
         if load_from_cloud:
             if not (cloud_provider and str(cloud_provider).strip()):
                 return "Cloud: 'cloud_provider' is required."
-            if not (bucket_link and bucket_link.strip()):
+            if not (bucket_link and str(bucket_link).strip()):
                 return "Cloud: 'bucket_link' is required."
-            if not (cloud_api_key and cloud_api_key.strip()):
+            if not (cloud_api_key and str(cloud_api_key).strip()):
                 return "Cloud: 'cloud_api_key' is required."
         return True

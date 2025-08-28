@@ -102,19 +102,12 @@ class SaveImageExtended:
     DESCRIPTION = cleandoc(__doc__)
 
     @classmethod
-    def VALIDATE_INPUTS(s,
-        images,
-        filename_prefix="ComfyUI",
-        save_to_cloud=True,
-        cloud_provider="AWS S3",
-        bucket_link="",
-        cloud_folder_path="",
-        cloud_api_key="",
-        save_to_local=False,
-        local_folder_path="",
-        prompt=None,
-        extra_pnginfo=None,
-    ):
+    def VALIDATE_INPUTS(s, **kwargs):
+        save_to_cloud = kwargs.get("save_to_cloud", True)
+        save_to_local = kwargs.get("save_to_local", False)
+        cloud_provider = kwargs.get("cloud_provider", "AWS S3")
+        bucket_link = kwargs.get("bucket_link", "")
+        cloud_api_key = kwargs.get("cloud_api_key", "")
         if not save_to_cloud and not save_to_local:
             return "Enable at least one of 'Save to Cloud' or 'Save to Local'."
         if save_to_cloud:

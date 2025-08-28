@@ -43,7 +43,7 @@ Documentation = "https://github.com/RUiNtheExtinct/comfyui-save-file-extended/wi
 
 
 [tool.comfy]
-PublisherId = "RUiNtheExtinct"
+PublisherId = "ruintheextinct"
 DisplayName = "comfyui-save-file-extended"
 Icon = ""
 Tags = []

@@ -97,7 +97,10 @@ class LoadVideoExtended(ComfyNodeABC):
         return (vid,)
 
     @classmethod
-    def IS_CHANGED(cls, load_from_cloud, file_paths, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key="", local_file=None):
+    def IS_CHANGED(cls, **kwargs):
+        load_from_cloud = kwargs.get("load_from_cloud", False)
+        file_paths = kwargs.get("file_paths", "")
+        local_file = kwargs.get("local_file", None)
         if load_from_cloud:
             m = os.urandom(8)
             return m.hex()
@@ -105,13 +108,20 @@ class LoadVideoExtended(ComfyNodeABC):
             video_path = folder_paths.get_annotated_filepath(local_file)
             return os.path.getmtime(video_path)
         if file_paths:
-            name = [p.strip() for p in str(file_paths).splitlines() if p.strip()][0]
-            video_path = folder_paths.get_annotated_filepath(name)
-            return os.path.getmtime(video_path)
+            names = [p.strip() for p in str(file_paths).splitlines() if p.strip()]
+            if len(names) > 0:
+                video_path = folder_paths.get_annotated_filepath(names[0])
+                return os.path.getmtime(video_path)
         return os.urandom(8).hex()
 
     @classmethod
-    def VALIDATE_INPUTS(cls, load_from_cloud, file_paths, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="", cloud_api_key="", local_file=None):
+    def VALIDATE_INPUTS(cls, **kwargs):
+        load_from_cloud = kwargs.get("load_from_cloud", False)
+        file_paths = kwargs.get("file_paths", "")
+        cloud_provider = kwargs.get("cloud_provider", "AWS S3")
+        bucket_link = kwargs.get("bucket_link", "")
+        cloud_api_key = kwargs.get("cloud_api_key", "")
+        local_file = kwargs.get("local_file", None)
         if load_from_cloud:
             if not (cloud_provider and str(cloud_provider).strip()):
                 return "Cloud: 'cloud_provider' is required."
