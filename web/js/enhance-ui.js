@@ -9,13 +9,43 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
             const setHidden = (names, hidden) => {
                 names.forEach((n) => {
                     const w = get(n);
-                    if (w) w.hidden = !!hidden;
+                    if (!w) return;
+                    w.hidden = !!hidden;
+                    // Collapse widget contribution to node height while hidden
+                    if (w.hidden) {
+                        if (!w._origComputeSize)
+                            w._origComputeSize = w.computeSize;
+                        w.computeSize = () => [0, 0];
+                    } else {
+                        if (w._origComputeSize) {
+                            w.computeSize = w._origComputeSize;
+                            delete w._origComputeSize;
+                        } else {
+                            delete w.computeSize;
+                        }
+                    }
                 });
             };
             const indexOf = (name) =>
                 (this.widgets || []).findIndex((w) => w.name === name);
+            const adjustSize = () => {
+                const widgets = this.widgets || [];
+                const visibleCount = widgets.filter((w) => !w.hidden).length;
+                const y0 = this.widgets_start_y ?? 28;
+                const per = 22; // approx per-widget height in ComfyUI theme
+                const pad = 12; // bottom padding
+                const width = this.size?.[0] ?? 220;
+                const height = y0 + visibleCount * per + pad;
+                this.setSize?.([width, height]);
+            };
+
             const refresh = () => {
-                if (nodeName === "SaveImageExtended" || nodeName === "SaveAudioExtended" || nodeName === "SaveVideoExtended" || nodeName === "SaveWEBMExtended") {
+                if (
+                    nodeName === "SaveImageExtended" ||
+                    nodeName === "SaveAudioExtended" ||
+                    nodeName === "SaveVideoExtended" ||
+                    nodeName === "SaveWEBMExtended"
+                ) {
                     const saveToCloud = !!get("save_to_cloud")?.value;
                     const saveToLocal = !!get("save_to_local")?.value;
                     setHidden(groups.cloud, !saveToCloud);
@@ -25,7 +55,11 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
                     this._cse_ui.localVisible = saveToLocal;
                     this._cse_ui.cloudStartIdx = indexOf("cloud_provider");
                     this._cse_ui.localStartIdx = indexOf("local_folder_path");
-                } else if (nodeName === "LoadImageExtended" || nodeName === "LoadAudioExtended" || nodeName === "LoadVideoExtended") {
+                } else if (
+                    nodeName === "LoadImageExtended" ||
+                    nodeName === "LoadAudioExtended" ||
+                    nodeName === "LoadVideoExtended"
+                ) {
                     const fromCloud = !!get("load_from_cloud")?.value;
                     setHidden(groups.cloud, !fromCloud);
                     this._cse_ui = this._cse_ui || {};
@@ -33,6 +67,8 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
                     this._cse_ui.cloudStartIdx = indexOf("cloud_provider");
                 }
                 this.onResize?.(this.size);
+                // Explicitly resize based on visible widgets to avoid stacking/overflow
+                adjustSize();
                 app.graph.setDirtyCanvas(true, true);
             };
 
@@ -47,10 +83,19 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
                 };
             };
 
-            if (nodeName === "SaveImageExtended" || nodeName === "SaveAudioExtended" || nodeName === "SaveVideoExtended" || nodeName === "SaveWEBMExtended") {
+            if (
+                nodeName === "SaveImageExtended" ||
+                nodeName === "SaveAudioExtended" ||
+                nodeName === "SaveVideoExtended" ||
+                nodeName === "SaveWEBMExtended"
+            ) {
                 attach("save_to_cloud");
                 attach("save_to_local");
-            } else if (nodeName === "LoadImageExtended" || nodeName === "LoadAudioExtended" || nodeName === "LoadVideoExtended") {
+            } else if (
+                nodeName === "LoadImageExtended" ||
+                nodeName === "LoadAudioExtended" ||
+                nodeName === "LoadVideoExtended"
+            ) {
                 attach("load_from_cloud");
             }
 
@@ -63,104 +108,104 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
 
             // Draw section headers/dividers and subtle group backgrounds
             const prevDraw = this.onDrawForeground;
-            this.onDrawForeground = function (ctx) {
-                prevDraw?.call(this, ctx);
-                const meta = this._cse_ui || {};
-                const W = this.size?.[0] || 220;
-                const widgets = this.widgets || [];
-                // Estimate per-widget height
-                const H = 22; // approx row height
-                const M = 6; // margin between groups
-                ctx.save();
-                ctx.font = "bold 12px sans-serif";
-                ctx.fillStyle = "#cfcfcf";
-                ctx.strokeStyle = "#4a4a4a";
-                ctx.lineWidth = 1;
+            // this.onDrawForeground = function (ctx) {
+            //     prevDraw?.call(this, ctx);
+            //     const meta = this._cse_ui || {};
+            //     const W = this.size?.[0] || 220;
+            //     const widgets = this.widgets || [];
+            //     // Estimate per-widget height
+            //     const H = 22; // approx row height
+            //     const M = 6; // margin between groups
+            //     ctx.save();
+            //     ctx.font = "bold 12px sans-serif";
+            //     ctx.fillStyle = "#cfcfcf";
+            //     ctx.strokeStyle = "#4a4a4a";
+            //     ctx.lineWidth = 1;
 
-                const bgFor = (label) =>
-                    label === "Cloud" ? "rgba(70, 120, 210, 0.08)" : "rgba(90, 210, 140, 0.08)";
+            //     const bgFor = (label) =>
+            //         label === "Cloud" ? "rgba(70, 120, 210, 0.08)" : "rgba(90, 210, 140, 0.08)";
 
-                const groupBounds = (names) => {
-                    if (!Array.isArray(names) || names.length === 0) return null;
-                    const indices = (widgets || [])
-                        .map((w, i) => ({ w, i }))
-                        .filter(({ w }) => names.includes(w.name) && !w.hidden)
-                        .map(({ i }) => i);
-                    if (indices.length === 0) return null;
-                    return { min: Math.min(...indices), max: Math.max(...indices) };
-                };
+            //     const groupBounds = (names) => {
+            //         if (!Array.isArray(names) || names.length === 0) return null;
+            //         const indices = (widgets || [])
+            //             .map((w, i) => ({ w, i }))
+            //             .filter(({ w }) => names.includes(w.name) && !w.hidden)
+            //             .map(({ i }) => i);
+            //         if (indices.length === 0) return null;
+            //         return { min: Math.min(...indices), max: Math.max(...indices) };
+            //     };
 
-                const drawHeader = (label, idx) => {
-                    if (idx == null || idx < 0) return;
-                    const y = this.widgets_start_y
-                        ? this.widgets_start_y + idx * H
-                        : 28 + idx * H;
-                    // Divider line
-                    ctx.beginPath();
-                    ctx.moveTo(8, y - M);
-                    ctx.lineTo(W - 8, y - M);
-                    ctx.stroke();
-                    // Label background pill
-                    const text = ` ${label} `;
-                    const tw = ctx.measureText(text).width + 8;
-                    ctx.fillStyle = "#242424";
-                    ctx.fillRect(10, y - M - 12, tw, 14);
-                    ctx.fillStyle = "#e0e0e0";
-                    ctx.fillText(text, 12, y - M - 1);
-                };
+            //     const drawHeader = (label, idx) => {
+            //         if (idx == null || idx < 0) return;
+            //         const y = this.widgets_start_y
+            //             ? this.widgets_start_y + idx * H
+            //             : 28 + idx * H;
+            //         // Divider line
+            //         ctx.beginPath();
+            //         ctx.moveTo(8, y - M);
+            //         ctx.lineTo(W - 8, y - M);
+            //         ctx.stroke();
+            //         // Label background pill
+            //         const text = ` ${label} `;
+            //         const tw = ctx.measureText(text).width + 8;
+            //         ctx.fillStyle = "#242424";
+            //         ctx.fillRect(10, y - M - 12, tw, 14);
+            //         ctx.fillStyle = "#e0e0e0";
+            //         ctx.fillText(text, 12, y - M - 1);
+            //     };
 
-                const drawGroupBg = (label, names) => {
-                    const bounds = groupBounds(names);
-                    if (!bounds) return;
-                    const startIdx = bounds.min;
-                    const endIdx = bounds.max;
-                    const y1 = (this.widgets_start_y ? this.widgets_start_y : 28) + startIdx * H + 2;
-                    const y2 = (this.widgets_start_y ? this.widgets_start_y : 28) + (endIdx + 1) * H + 2;
-                    ctx.save();
-                    ctx.fillStyle = bgFor(label);
-                    ctx.beginPath();
-                    const radius = 6;
-                    const x = 8, w = W - 16, h = Math.max(14, y2 - y1 - 4);
-                    // simple rounded rect
-                    ctx.moveTo(x + radius, y1);
-                    ctx.arcTo(x + w, y1, x + w, y1 + h, radius);
-                    ctx.arcTo(x + w, y1 + h, x, y1 + h, radius);
-                    ctx.arcTo(x, y1 + h, x, y1, radius);
-                    ctx.arcTo(x, y1, x + w, y1, radius);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.restore();
-                };
+            //     const drawGroupBg = (label, names) => {
+            //         const bounds = groupBounds(names);
+            //         if (!bounds) return;
+            //         const startIdx = bounds.min;
+            //         const endIdx = bounds.max;
+            //         const y1 = (this.widgets_start_y ? this.widgets_start_y : 28) + startIdx * H + 2;
+            //         const y2 = (this.widgets_start_y ? this.widgets_start_y : 28) + (endIdx + 1) * H + 2;
+            //         ctx.save();
+            //         ctx.fillStyle = bgFor(label);
+            //         ctx.beginPath();
+            //         const radius = 6;
+            //         const x = 8, w = W - 16, h = Math.max(14, y2 - y1 - 4);
+            //         // simple rounded rect
+            //         ctx.moveTo(x + radius, y1);
+            //         ctx.arcTo(x + w, y1, x + w, y1 + h, radius);
+            //         ctx.arcTo(x + w, y1 + h, x, y1 + h, radius);
+            //         ctx.arcTo(x, y1 + h, x, y1, radius);
+            //         ctx.arcTo(x, y1, x + w, y1, radius);
+            //         ctx.closePath();
+            //         ctx.fill();
+            //         ctx.restore();
+            //     };
 
-                if (nodeName === "SaveImageExtended" || nodeName === "SaveAudioExtended" || nodeName === "SaveVideoExtended" || nodeName === "SaveWEBMExtended") {
-                    if (meta.cloudVisible) {
-                        drawGroupBg("Cloud", [
-                            "cloud_provider",
-                            "bucket_link",
-                            "cloud_folder_path",
-                            "cloud_api_key",
-                        ]);
-                        drawHeader("Cloud", meta.cloudStartIdx);
-                    }
-                    if (meta.localVisible) {
-                        drawGroupBg("Local", [
-                            "local_folder_path",
-                        ]);
-                        drawHeader("Local", meta.localStartIdx);
-                    }
-                } else if (nodeName === "LoadImageExtended" || nodeName === "LoadAudioExtended" || nodeName === "LoadVideoExtended") {
-                    if (meta.cloudVisible) {
-                        drawGroupBg("Cloud", [
-                            "cloud_provider",
-                            "bucket_link",
-                            "cloud_folder_path",
-                            "cloud_api_key",
-                        ]);
-                        drawHeader("Cloud", meta.cloudStartIdx);
-                    }
-                }
-                ctx.restore();
-            };
+            //     if (nodeName === "SaveImageExtended" || nodeName === "SaveAudioExtended" || nodeName === "SaveVideoExtended" || nodeName === "SaveWEBMExtended") {
+            //         if (meta.cloudVisible) {
+            //             drawGroupBg("Cloud", [
+            //                 "cloud_provider",
+            //                 "bucket_link",
+            //                 "cloud_folder_path",
+            //                 "cloud_api_key",
+            //             ]);
+            //             drawHeader("Cloud", meta.cloudStartIdx);
+            //         }
+            //         if (meta.localVisible) {
+            //             drawGroupBg("Local", [
+            //                 "local_folder_path",
+            //             ]);
+            //             drawHeader("Local", meta.localStartIdx);
+            //         }
+            //     } else if (nodeName === "LoadImageExtended" || nodeName === "LoadAudioExtended" || nodeName === "LoadVideoExtended") {
+            //         if (meta.cloudVisible) {
+            //             drawGroupBg("Cloud", [
+            //                 "cloud_provider",
+            //                 "bucket_link",
+            //                 "cloud_folder_path",
+            //                 "cloud_api_key",
+            //             ]);
+            //             drawHeader("Cloud", meta.cloudStartIdx);
+            //         }
+            //     }
+            //     ctx.restore();
+            // };
         };
     };
 
