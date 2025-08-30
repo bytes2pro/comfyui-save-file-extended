@@ -34,7 +34,7 @@ Load images from your local input directory or directly from supported cloud pro
 -   OneDrive → bucket_link: `/base/path`.
 -   FTP → bucket_link: `ftp://user:pass@host[:port]/basepath`.
 -   Supabase → bucket_link: `<bucket_name>`.
--   UploadThing → bucket_link: (leave blank). Use UploadThing file keys or full utfs.io URLs.
+-   UploadThing → bucket_link: Project Name. Use UploadThing file keys or full utfs.io URLs.
 
 ## Getting provider values (URLs, bucket links, keys)
 
@@ -96,7 +96,7 @@ Load images from your local input directory or directly from supported cloud pro
 
 ### UploadThing
 
--   Bucket link: (leave blank)
+-   Bucket link: Project Name
 -   Keys vs URLs: Paste UploadThing file keys (e.g., `abc123-file.png`) or full URLs like `https://utfs.io/f/abc123-file.png`.
 -   API key: Provide your UploadThing secret key (`sk_...`) when using keys so the node can resolve the public URL. If you supply full URLs, the secret is not needed.
 

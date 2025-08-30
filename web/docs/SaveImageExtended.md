@@ -38,7 +38,7 @@ Save images locally and/or upload them to a cloud provider in one batch. Shows r
 -   OneDrive → bucket_link: `/base/path` | cloud_api_key: OAuth2 token or refresh JSON.
 -   FTP → bucket_link: `ftp://user:pass@host[:port]/basepath` | cloud_api_key: not used.
 -   Supabase → bucket_link: `<bucket_name>` | cloud_api_key: JSON `{url, key}` or `url|key`.
--.  UploadThing → bucket_link: (leave blank) | cloud_api_key: your UploadThing secret key (`sk_...`). Returns public utfs.io URLs.
+-.  UploadThing → bucket_link: your project name | cloud_api_key: your UploadThing secret key (`sk_...`). Returns public utfs.io URLs.
 
 ## Getting provider values (URLs, bucket links, keys)
 
@@ -120,7 +120,7 @@ using (bucket_id = '<bucket_name>');
 
 ### UploadThing
 
--   Bucket link: (leave blank)
+-   Bucket link: your UploadThing Project Name
 -   API key: your UploadThing secret key (`sk_...`). A JSON string like `{"secret":"sk_..."}` also works.
 -   Behavior: Files are uploaded via the UploadThing API and served from the public CDN (`utfs.io`). The node returns the CDN URL and file key.
 

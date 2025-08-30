@@ -34,7 +34,7 @@ Save a video locally and/or upload it to a cloud provider in one step. Shows rea
 -   **OneDrive** → `/base/path` | API key: OAuth2 JSON or access token.
 -   **FTP** → `ftp://user:pass@host[:port]/basepath` | API key: not used.
 -   **Supabase Storage** → `<bucket_name>` | API key: `{"url":"https://...","key":"<JWT>"}` or `url|key`.
--   **UploadThing** → leave `bucket_link` blank | API key: `sk_...`.
+-   **UploadThing** → set `bucket_link` to UploadThing project name | API key: `sk_...`.
 
 ### Token refresh (optional)
 

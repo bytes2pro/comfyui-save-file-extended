@@ -31,7 +31,7 @@ Save audio locally and/or upload to a cloud provider. Supports WAV, FLAC, MP3, a
 -   OneDrive → `/base/path` | API key: OAuth2 JSON or access token.
 -   FTP → `ftp://user:pass@host[:port]/basepath` | API key: not used.
 -   Supabase Storage → `<bucket_name>` | API key: `{"url":"https://...","key":"<JWT>"}` or `url|key`.
--   UploadThing → leave `bucket_link` blank | API key: `sk_...`.
+-   UploadThing → Project Name  | API key: `sk_...`.
 
 ### Token refresh (optional)
 
