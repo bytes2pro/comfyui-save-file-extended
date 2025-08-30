@@ -15,7 +15,6 @@ __author__ = ", ".join(__authors__)
 __emails__ = ["deepkarma001@gmail.com", "premsaig1605@gmail.com"]
 __email__ = ", ".join(__emails__)
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
-from .src.comfyui_save_file_extended.nodes import (NODE_CLASS_MAPPINGS,
-                                                   NODE_DISPLAY_NAME_MAPPINGS)
+from .src.comfyui_save_file_extended.nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
