@@ -5,17 +5,29 @@ import io
 import json
 import threading
 from typing import Any, Dict, List, Tuple
-from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from ._logging import log_exceptions
 import mimetypes
+
+import requests
 
 try:  # Unofficial Python SDK for UploadThing
     # https://pypi.org/project/uploadthing.py/
     from uploadthing_py import UTApi  # type: ignore
 except Exception:  # pragma: no cover
     UTApi = None  # type: ignore
+
+
+class NamedBytesIO(io.BytesIO):
+    """
+    A BytesIO subclass that supports a "name" attribute. Some SDKs expect
+    file-like objects to expose a filename via a .name attribute.
+    """
+
+    def __init__(self, initial_bytes: bytes, name: str) -> None:
+        super().__init__(initial_bytes)
+        self.name = name
 
 
 @log_exceptions
@@ -48,25 +60,27 @@ def _run_async(coro):
     Run an async coroutine from sync context. If an event loop is already
     running (e.g., inside certain environments), execute it in a worker thread.
     """
+    # If there is no running loop, use asyncio.run directly
     try:
+        asyncio.get_running_loop()
+    except RuntimeError:
         return asyncio.run(coro)
-    except RuntimeError as e:
-        if "already running" not in str(e):
-            raise
-        result: Dict[str, Any] = {}
 
-        def _target() -> None:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                result["value"] = loop.run_until_complete(coro)
-            finally:
-                loop.close()
+    # Otherwise, execute the coroutine in a dedicated event loop on a worker thread
+    result: Dict[str, Any] = {}
 
-        t = threading.Thread(target=_target, daemon=True)
-        t.start()
-        t.join()
-        return result.get("value")
+    def _target() -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result["value"] = loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+    t = threading.Thread(target=_target, daemon=True)
+    t.start()
+    t.join()
+    return result.get("value")
 
 
 @log_exceptions
@@ -90,6 +104,94 @@ def _http_download(url: str, byte_callback=None) -> bytes:
         return b"".join(chunks)
 
 
+_UT_API_BASE = "https://api.uploadthing.com"
+
+
+def _ut_headers(api_key: str) -> Dict[str, str]:
+    secret = _parse_secret(api_key)
+    return {
+        "X-Uploadthing-Api-Key": secret,
+        "Content-Type": "application/json",
+        "User-Agent": "ComfyUI-SaveFileExtended/UploadThing",
+    }
+
+
+def _ut_presign(files: List[Dict[str, Any]], api_key: str) -> List[Dict[str, Any]]:
+    """
+    Request presigned upload targets for one or more files.
+    Each file dict must include: name, size, content_type.
+    Tries v7 then v6 per UploadThing REST API.
+    See: https://docs.uploadthing.com/api-reference/openapi-spec
+    """
+    payload = {
+        "files": [
+            {
+                "name": f["name"],
+                "contentType": f["content_type"],  # v7
+                "type": f["content_type"],  # compatibility
+                "size": f["size"],
+            }
+            for f in files
+        ]
+    }
+    headers = _ut_headers(api_key)
+    timeout = (10, 60)
+
+    # Try v7 first
+    url = f"{_UT_API_BASE}/v7/uploadFiles"
+    resp = requests.post(url, json=payload, headers=headers, timeout=timeout)
+    if resp.status_code == 404:
+        # Fallback to v6
+        url = f"{_UT_API_BASE}/v6/uploadFiles"
+        resp = requests.post(url, json=payload, headers=headers, timeout=timeout)
+    resp.raise_for_status()
+    data = resp.json()
+    res_list = data.get("data", data)
+    if not isinstance(res_list, list):
+        raise RuntimeError("[SaveFileExtended:uploadthing] Unexpected response from presign endpoint")
+    return res_list
+
+
+def _ut_put(upload_url: str, body: bytes, headers: Dict[str, Any]) -> None:
+    req_headers = {str(k): str(v) for k, v in (headers or {}).items()}
+    if "Content-Length" not in {k.title(): v for k, v in req_headers.items()}:
+        req_headers["Content-Length"] = str(len(body))
+    timeout = (10, max(60, len(body) // (256 * 1024)))
+    r = requests.put(upload_url, data=body, headers=req_headers, timeout=timeout)
+    r.raise_for_status()
+
+
+def _ut_post_multipart(post_url: str, fields: Dict[str, Any], file_tuple: Tuple[str, bytes, str]) -> None:
+    files = {"file": file_tuple}
+    r = requests.post(post_url, data=fields or {}, files=files, timeout=(10, 120))
+    r.raise_for_status()
+
+
+def _ut_resolve_urls(keys: List[str], api_key: str) -> Dict[str, str]:
+    if not keys:
+        return {}
+    headers = _ut_headers(api_key)
+    payload = {"fileKeys": keys}
+    for ver in ("v7", "v6"):
+        try:
+            url = f"{_UT_API_BASE}/{ver}/getFileUrls"
+            resp = requests.post(url, json=payload, headers=headers, timeout=(10, 30))
+            if resp.status_code == 404:
+                continue
+            resp.raise_for_status()
+            data = resp.json().get("data")
+            out: Dict[str, str] = {}
+            if isinstance(data, list):
+                for i, key in enumerate(keys):
+                    item = data[i] if i < len(data) else None
+                    if isinstance(item, dict) and item.get("url"):
+                        out[key] = str(item["url"])  # type: ignore[index]
+            return out
+        except Exception:
+            continue
+    return {}
+
+
 class Uploader:
     @staticmethod
     @log_exceptions
@@ -102,90 +204,86 @@ class Uploader:
     @staticmethod
     @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
-        client = Uploader._get_client(api_key)
         name = _name_with_prefix(filename, cloud_folder_path)
+        content_type = mimetypes.guess_type(name)[0] or "application/octet-stream"
+        presigned = _ut_presign([{"name": name, "size": len(image_bytes), "content_type": content_type}], api_key)
+        item = presigned[0] if presigned and isinstance(presigned[0], dict) else {}
 
-        async def _do() -> Dict[str, Any]:
-            # Many Python HTTP clients accept file-like objects with a name attribute
-            f = io.BytesIO(image_bytes)
-            f.name = name  # type: ignore[attr-defined]
-            try:
-                res = await client.upload_files([f])  # type: ignore[attr-defined]
-            except TypeError:
-                # Fallback to bytes payload if the SDK expects dicts
-                content_type = mimetypes.guess_type(name)[0] or 'application/octet-stream'
-                res = await client.upload_files([{"name": name, "data": image_bytes, "content_type": content_type}])  # type: ignore[list-item]
-            item = res[0] if isinstance(res, list) else res
-            # Expected shape from SDK: { key: str, url: str, ... }
-            key = item.get("key") if isinstance(item, dict) else None
-            url = item.get("url") if isinstance(item, dict) else None
-            if not url and key:
-                # Public CDN shortcut used by UploadThing
-                url = f"https://utfs.io/f/{key}"
-            return {"provider": "UploadThing", "path": key or name, "url": url}
+        key = item.get("key") or item.get("fileKey")
+        url = item.get("fileUrl") or item.get("url")
 
-        return _run_async(_do())
+        # Two possible flows: PUT or POST multipart depending on response shape
+        if item.get("uploadUrl"):
+            headers = item.get("headers") or {}
+            if "Content-Type" not in headers:
+                headers["Content-Type"] = content_type
+            _ut_put(str(item["uploadUrl"]), image_bytes, headers)
+        elif item.get("url") and item.get("fields"):
+            _ut_post_multipart(str(item["url"]), item.get("fields") or {}, (name, image_bytes, content_type))
+
+        if not url and key:
+            url = f"https://utfs.io/f/{key}"
+
+        return {"provider": "UploadThing", "path": key or name, "url": url}
 
     @staticmethod
     @log_exceptions
-    def upload_many(items: List[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> List[Dict[str, Any]]:
-        client = Uploader._get_client(api_key)
+    def upload_many(
+        items: List[Dict[str, Any]], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None
+    ) -> List[Dict[str, Any]]:
+        # Prepare metadata for presign
+        meta: List[Dict[str, Any]] = []
+        for it in items:
+            name = _name_with_prefix(it["filename"], cloud_folder_path)
+            content_type = mimetypes.guess_type(name)[0] or "application/octet-stream"
+            meta.append({"name": name, "size": len(it["content"]), "content_type": content_type})
 
-        async def _do() -> List[Dict[str, Any]]:
-            files: List[Any] = []
-            for item in items:
-                name = _name_with_prefix(item["filename"], cloud_folder_path)
-                f = io.BytesIO(item["content"])
-                f.name = name  # type: ignore[attr-defined]
-                files.append(f)
-            results: List[Dict[str, Any]] = []
-            try:
-                resp = await client.upload_files(files)  # type: ignore[attr-defined]
-                # Normalize to list of dicts
-                if not isinstance(resp, list):
-                    resp = [resp]
-                for idx, item in enumerate(resp):
-                    key = item.get("key") if isinstance(item, dict) else None
-                    url = item.get("url") if isinstance(item, dict) else None
-                    if not url and key:
-                        url = f"https://utfs.io/f/{key}"
-                    results.append({"provider": "UploadThing", "path": key or items[idx]["filename"], "url": url})
-                    if progress_callback:
-                        try:
-                            progress_callback({"index": idx, "filename": items[idx]["filename"], "path": key or items[idx]["filename"]})
-                        except Exception:
-                            pass
-                    if byte_callback:
-                        try:
-                            body = items[idx]["content"]
-                            byte_callback({"delta": len(body), "sent": len(body), "total": len(body), "index": idx, "filename": items[idx]["filename"], "path": key or items[idx]["filename"]})
-                        except Exception:
-                            pass
-            except TypeError:
-                # Fallback to one-by-one
-                for idx, it in enumerate(items):
-                    name = _name_with_prefix(it["filename"], cloud_folder_path)
-                    content_type = mimetypes.guess_type(name)[0] or 'application/octet-stream'
-                    single = await client.upload_files([{"name": name, "data": it["content"], "content_type": content_type}])  # type: ignore[list-item]
-                    item = single[0] if isinstance(single, list) else single
-                    key = item.get("key") if isinstance(item, dict) else None
-                    url = item.get("url") if isinstance(item, dict) else None
-                    if not url and key:
-                        url = f"https://utfs.io/f/{key}"
-                    results.append({"provider": "UploadThing", "path": key or it["filename"], "url": url})
-                    if progress_callback:
-                        try:
-                            progress_callback({"index": idx, "filename": it["filename"], "path": key or it["filename"]})
-                        except Exception:
-                            pass
-                    if byte_callback:
-                        try:
-                            byte_callback({"delta": len(it["content"]), "sent": len(it["content"]), "total": len(it["content"]), "index": idx, "filename": it["filename"], "path": key or it["filename"]})
-                        except Exception:
-                            pass
-            return results
+        presigned = _ut_presign(meta, api_key)
+        results: List[Dict[str, Any]] = []
 
-        return _run_async(_do())
+        for idx, it in enumerate(items):
+            name = meta[idx]["name"] if idx < len(meta) else _name_with_prefix(it["filename"], cloud_folder_path)
+            content_type = meta[idx]["content_type"] if idx < len(meta) else (mimetypes.guess_type(name)[0] or "application/octet-stream")
+            body = it["content"]
+
+            item = presigned[idx] if idx < len(presigned) and isinstance(presigned[idx], dict) else {}
+            key = item.get("key") or item.get("fileKey")
+            url = item.get("fileUrl") or item.get("url")
+
+            if item.get("uploadUrl"):
+                headers = item.get("headers") or {}
+                if "Content-Type" not in headers:
+                    headers["Content-Type"] = content_type
+                _ut_put(str(item["uploadUrl"]), body, headers)
+            elif item.get("url") and item.get("fields"):
+                _ut_post_multipart(str(item["url"]), item.get("fields") or {}, (name, body, content_type))
+
+            if not url and key:
+                url = f"https://utfs.io/f/{key}"
+
+            results.append({"provider": "UploadThing", "path": key or it["filename"], "url": url})
+
+            if progress_callback:
+                try:
+                    progress_callback({"index": idx, "filename": it["filename"], "path": key or it["filename"]})
+                except Exception:
+                    pass
+            if byte_callback:
+                try:
+                    byte_callback(
+                        {
+                            "delta": len(body),
+                            "sent": len(body),
+                            "total": len(body),
+                            "index": idx,
+                            "filename": it["filename"],
+                            "path": key or it["filename"],
+                        }
+                    )
+                except Exception:
+                    pass
+
+        return results
 
     @staticmethod
     @log_exceptions
@@ -197,21 +295,9 @@ class Uploader:
 
         # Otherwise treat it as an UploadThing file key and resolve to URL
         url = None
-        if UTApi is not None and api_key:
-            client = Uploader._get_client(api_key)
-
-            async def _do_one() -> str | None:
-                try:
-                    # Prefer explicit lookup if available
-                    if hasattr(client, "get_file_urls"):
-                        res = await client.get_file_urls([key_or_url])  # type: ignore[attr-defined]
-                        if isinstance(res, list) and res and isinstance(res[0], dict):
-                            return res[0].get("url")
-                except Exception:
-                    return None
-                return None
-
-            url = _run_async(_do_one())
+        if api_key:
+            resolved = _ut_resolve_urls([key_or_url], api_key)
+            url = resolved.get(key_or_url)
 
         # Fallback to public CDN pattern
         if not url:
@@ -221,30 +307,13 @@ class Uploader:
 
     @staticmethod
     @log_exceptions
-    def download_many(keys: List[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> List[Dict[str, Any]]:
+    def download_many(
+        keys: List[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None
+    ) -> List[Dict[str, Any]]:
         results: List[Dict[str, Any]] = []
-        # Attempt to resolve URLs in one go if SDK supports it and keys are not URLs already
+        # Attempt to resolve URLs in one go if keys are not URLs already
         to_resolve: List[str] = [k for k in keys if not (k.startswith("http://") or k.startswith("https://"))]
-        resolved: Dict[str, str] = {}
-
-        if UTApi is not None and to_resolve and api_key:
-            client = Uploader._get_client(api_key)
-
-            async def _do_many() -> Dict[str, str]:
-                out: Dict[str, str] = {}
-                try:
-                    if hasattr(client, "get_file_urls"):
-                        res = await client.get_file_urls(to_resolve)  # type: ignore[attr-defined]
-                        if isinstance(res, list):
-                            for i, key in enumerate(to_resolve):
-                                item = res[i] if i < len(res) else None
-                                if isinstance(item, dict) and item.get("url"):
-                                    out[key] = str(item["url"])  # type: ignore[index]
-                except Exception:
-                    return out
-                return out
-
-            resolved = _run_async(_do_many()) or {}
+        resolved: Dict[str, str] = _ut_resolve_urls(to_resolve, api_key) if to_resolve and api_key else {}
 
         for idx, name in enumerate(keys):
             url = name
@@ -258,5 +327,3 @@ class Uploader:
                 except Exception:
                     pass
         return results
-
-
