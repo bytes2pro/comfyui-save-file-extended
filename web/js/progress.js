@@ -5,6 +5,7 @@ export async function setupProgress(app) {
         panel = document.createElement("div");
         panel.id = panelId;
         panel.style.position = "fixed";
+        // position restored later from localStorage (bottom-right default)
         panel.style.bottom = "12px";
         panel.style.right = "12px";
         panel.style.maxWidth = "360px";
@@ -17,22 +18,37 @@ export async function setupProgress(app) {
         panel.style.borderRadius = "8px";
         panel.style.zIndex = 9999;
         panel.style.pointerEvents = "auto";
-        panel.style.boxShadow = "0 4px 20px rgba(0,0,0,.45)";
+        panel.style.boxShadow = "0 8px 30px rgba(0,0,0,.5)";
         panel.style.backdropFilter = "blur(2px)";
         panel.style.opacity = "0";
-        panel.style.transition = "opacity .25s ease";
+        panel.style.transform = "translateY(6px)";
+        panel.style.transition = "opacity .25s ease, transform .25s ease";
 
         const header = document.createElement("div");
         header.style.display = "flex";
         header.style.alignItems = "center";
         header.style.justifyContent = "space-between";
         header.style.marginBottom = "6px";
+        header.style.cursor = "move";
 
         const title = document.createElement("div");
         title.textContent = "Save/Load Status";
         title.style.fontWeight = "bold";
         title.style.letterSpacing = ".2px";
         header.appendChild(title);
+
+        const buttonsWrap = document.createElement("div");
+        buttonsWrap.style.display = "flex";
+        buttonsWrap.style.gap = "4px";
+
+        const pinBtn = document.createElement("button");
+        pinBtn.textContent = "📌";
+        pinBtn.setAttribute("aria-label", "Pin");
+        pinBtn.style.cursor = "pointer";
+        pinBtn.style.border = "none";
+        pinBtn.style.background = "transparent";
+        pinBtn.style.color = "#bbb";
+        pinBtn.style.fontSize = "14px";
 
         const closeBtn = document.createElement("button");
         closeBtn.textContent = "×";
@@ -43,7 +59,10 @@ export async function setupProgress(app) {
         closeBtn.style.color = "#bbb";
         closeBtn.style.fontSize = "14px";
         closeBtn.onclick = () => hidePanel(true);
-        header.appendChild(closeBtn);
+
+        buttonsWrap.appendChild(pinBtn);
+        buttonsWrap.appendChild(closeBtn);
+        header.appendChild(buttonsWrap);
 
         panel.appendChild(header);
 
@@ -63,18 +82,48 @@ export async function setupProgress(app) {
     const idleMs = 8000; // hide after 8s of no updates
     const retainDoneMs = 5000; // keep completed/error items briefly
 
+    // Pinning and position persistence
+    const PIN_KEY = "cse:status:panel:pinned";
+    const POS_KEY = "cse:status:panel:pos";
+    let pinned = false;
+    try { pinned = localStorage.getItem(PIN_KEY) === "1"; } catch {}
+
+    function setPinned(next) {
+        pinned = !!next;
+        try { localStorage.setItem(PIN_KEY, pinned ? "1" : "0"); } catch {}
+        const btn = panel.querySelector("button[aria-label='Pin']");
+        if (btn) btn.style.color = pinned ? "#ffd66b" : "#bbb";
+    }
+
+    // Restore position if saved
+    try {
+        const raw = localStorage.getItem(POS_KEY);
+        if (raw) {
+            const p = JSON.parse(raw);
+            panel.style.top = p.top ?? "";
+            panel.style.left = p.left ?? "";
+            panel.style.bottom = p.bottom ?? "12px";
+            panel.style.right = p.right ?? "12px";
+        }
+    } catch {}
+
     function now() {
         return Date.now();
     }
 
     function showPanel() {
         panel.style.display = "block";
-        panel.style.opacity = "1";
+        requestAnimationFrame(() => {
+            panel.style.opacity = "1";
+            panel.style.transform = "translateY(0)";
+        });
     }
 
     function hidePanel(force = false) {
+        if (pinned && !force) return; // don't auto-hide when pinned
         if (force || now() - lastActivityTs >= idleMs) {
             panel.style.opacity = "0";
+            panel.style.transform = "translateY(6px)";
             // delay display:none to allow fade
             setTimeout(() => {
                 if (panel.style.opacity === "0") panel.style.display = "none";
@@ -378,4 +427,81 @@ export async function setupProgress(app) {
     panel.addEventListener("mouseleave", () => {
         bumpActivity();
     });
+
+    // Pin toggle
+    const pinBtnEl = panel.querySelector("button[aria-label='Pin']");
+    if (pinBtnEl) {
+        setPinned(pinned);
+        pinBtnEl.addEventListener("click", (e) => {
+            e.stopPropagation();
+            setPinned(!pinned);
+            if (pinned) showPanel();
+        });
+    }
+
+    // Drag to move via header
+    const headerEl = panel.firstChild;
+    let dragging = false;
+    let startX = 0, startY = 0;
+    let startTop = 0, startLeft = 0;
+    function savePos() {
+        try {
+            const rect = panel.getBoundingClientRect();
+            const pos = {
+                top: rect.top + "px",
+                left: rect.left + "px",
+                bottom: "",
+                right: "",
+            };
+            panel.style.top = pos.top;
+            panel.style.left = pos.left;
+            panel.style.bottom = "";
+            panel.style.right = "";
+            localStorage.setItem(POS_KEY, JSON.stringify(pos));
+        } catch {}
+    }
+    function onMove(ev) {
+        if (!dragging) return;
+        const x = ev.touches ? ev.touches[0].clientX : ev.clientX;
+        const y = ev.touches ? ev.touches[0].clientY : ev.clientY;
+        const dx = x - startX;
+        const dy = y - startY;
+        panel.style.top = startTop + dy + "px";
+        panel.style.left = startLeft + dx + "px";
+        panel.style.bottom = "";
+        panel.style.right = "";
+    }
+    function endDrag() {
+        if (!dragging) return;
+        dragging = false;
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", endDrag);
+        document.removeEventListener("touchmove", onMove);
+        document.removeEventListener("touchend", endDrag);
+        savePos();
+    }
+    if (headerEl) {
+        headerEl.addEventListener("mousedown", (e) => {
+            if (e.target.getAttribute("aria-label") === "Close" || e.target.getAttribute("aria-label") === "Pin") return;
+            dragging = true;
+            const rect = panel.getBoundingClientRect();
+            startX = e.clientX;
+            startY = e.clientY;
+            startTop = rect.top;
+            startLeft = rect.left;
+            document.addEventListener("mousemove", onMove);
+            document.addEventListener("mouseup", endDrag);
+        });
+        headerEl.addEventListener("touchstart", (e) => {
+            const t = e.touches[0];
+            dragging = true;
+            const rect = panel.getBoundingClientRect();
+            startX = t.clientX;
+            startY = t.clientY;
+            startTop = rect.top;
+            startLeft = rect.left;
+            document.addEventListener("touchmove", onMove, { passive: true });
+            document.addEventListener("touchend", endDrag);
+        });
+    }
 }

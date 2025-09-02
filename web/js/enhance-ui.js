@@ -14,23 +14,158 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
             };
             const indexOf = (name) =>
                 (this.widgets || []).findIndex((w) => w.name === name);
+            this._cse_ui = this._cse_ui || { widgets: {} };
+
+            const persistKey = (section) =>
+                `${nodeName}:cse:${section}:collapsed`;
+
+            const ensureHeaderAt = (section, displayName, startIdx) => {
+                if (startIdx < 0) return;
+                const ui = this._cse_ui;
+                ui.widgets = ui.widgets || {};
+                if (!ui.widgets[section]) {
+                    // Create header button once
+                    const header = this.addWidget(
+                        "button",
+                        `${displayName} ▾`,
+                        null,
+                        () => {
+                            const key = section + "Collapsed";
+                            ui[key] = !ui[key];
+                            try {
+                                localStorage.setItem(
+                                    persistKey(section),
+                                    ui[key] ? "1" : "0"
+                                );
+                            } catch {}
+                            // Update arrow
+                            header.name = `${displayName} ${
+                                ui[key] ? "▸" : "▾"
+                            }`;
+                            refresh();
+                        }
+                    );
+                    // Do not serialize client-only header
+                    header.serialize = false;
+                    header.__cse_header = true;
+                    ui.widgets[section] = header;
+                    // Move header to desired index (above the group's first field)
+                    const currentIdx = this.widgets.indexOf(header);
+                    if (currentIdx > -1) {
+                        this.widgets.splice(currentIdx, 1);
+                        this.widgets.splice(startIdx, 0, header);
+                    }
+                } else {
+                    // Ensure header sits at the right location if widgets moved
+                    const header = ui.widgets[section];
+                    const currentIdx = this.widgets.indexOf(header);
+                    if (
+                        currentIdx !== startIdx &&
+                        currentIdx > -1 &&
+                        startIdx > -1
+                    ) {
+                        this.widgets.splice(currentIdx, 1);
+                        this.widgets.splice(startIdx, 0, header);
+                    }
+                }
+            };
+
             const refresh = () => {
-                if (nodeName === "SaveImageExtended" || nodeName === "SaveAudioExtended" || nodeName === "SaveVideoExtended" || nodeName === "SaveWEBMExtended") {
+                if (
+                    nodeName === "SaveImageExtended" ||
+                    nodeName === "SaveAudioExtended" ||
+                    nodeName === "SaveVideoExtended" ||
+                    nodeName === "SaveWEBMExtended"
+                ) {
                     const saveToCloud = !!get("save_to_cloud")?.value;
                     const saveToLocal = !!get("save_to_local")?.value;
-                    setHidden(groups.cloud, !saveToCloud);
-                    setHidden(groups.local, !saveToLocal);
-                    this._cse_ui = this._cse_ui || {};
                     this._cse_ui.cloudVisible = saveToCloud;
                     this._cse_ui.localVisible = saveToLocal;
                     this._cse_ui.cloudStartIdx = indexOf("cloud_provider");
                     this._cse_ui.localStartIdx = indexOf("local_folder_path");
-                } else if (nodeName === "LoadImageExtended" || nodeName === "LoadAudioExtended" || nodeName === "LoadVideoExtended") {
+
+                    // Restore persisted collapsed state
+                    if (this._cse_ui.cloudCollapsed === undefined) {
+                        try {
+                            this._cse_ui.cloudCollapsed =
+                                localStorage.getItem(persistKey("cloud")) ===
+                                "1";
+                        } catch {}
+                    }
+                    if (this._cse_ui.localCollapsed === undefined) {
+                        try {
+                            this._cse_ui.localCollapsed =
+                                localStorage.getItem(persistKey("local")) ===
+                                "1";
+                        } catch {}
+                    }
+
+                    // Ensure headers exist and are positioned
+                    ensureHeaderAt(
+                        "cloud",
+                        "Cloud",
+                        this._cse_ui.cloudStartIdx
+                    );
+                    ensureHeaderAt(
+                        "local",
+                        "Local",
+                        this._cse_ui.localStartIdx
+                    );
+
+                    // Apply collapsed/visibility
+                    const cloudHidden =
+                        !saveToCloud || !!this._cse_ui.cloudCollapsed;
+                    const localHidden =
+                        !saveToLocal || !!this._cse_ui.localCollapsed;
+                    setHidden(groups.cloud, cloudHidden);
+                    setHidden(groups.local, localHidden);
+                    if (this._cse_ui.widgets.cloud) {
+                        this._cse_ui.widgets.cloud.hidden = !saveToCloud;
+                        this._cse_ui.widgets.cloud.name = `Cloud ${
+                            this._cse_ui.cloudCollapsed ? "▸" : "▾"
+                        }`;
+                    }
+                    if (this._cse_ui.widgets.local) {
+                        this._cse_ui.widgets.local.hidden = !saveToLocal;
+                        this._cse_ui.widgets.local.name = `Local ${
+                            this._cse_ui.localCollapsed ? "▸" : "▾"
+                        }`;
+                    }
+                } else if (
+                    nodeName === "LoadImageExtended" ||
+                    nodeName === "LoadAudioExtended" ||
+                    nodeName === "LoadVideoExtended"
+                ) {
                     const fromCloud = !!get("load_from_cloud")?.value;
-                    setHidden(groups.cloud, !fromCloud);
-                    this._cse_ui = this._cse_ui || {};
                     this._cse_ui.cloudVisible = fromCloud;
                     this._cse_ui.cloudStartIdx = indexOf("cloud_provider");
+
+                    // Restore persisted collapsed state
+                    if (this._cse_ui.cloudCollapsed === undefined) {
+                        try {
+                            this._cse_ui.cloudCollapsed =
+                                localStorage.getItem(persistKey("cloud")) ===
+                                "1";
+                        } catch {}
+                    }
+
+                    // Ensure header exists
+                    ensureHeaderAt(
+                        "cloud",
+                        "Cloud",
+                        this._cse_ui.cloudStartIdx
+                    );
+
+                    // Apply collapsed/visibility
+                    const cloudHidden =
+                        !fromCloud || !!this._cse_ui.cloudCollapsed;
+                    setHidden(groups.cloud, cloudHidden);
+                    if (this._cse_ui.widgets.cloud) {
+                        this._cse_ui.widgets.cloud.hidden = !fromCloud;
+                        this._cse_ui.widgets.cloud.name = `Cloud ${
+                            this._cse_ui.cloudCollapsed ? "▸" : "▾"
+                        }`;
+                    }
                 }
                 this.onResize?.(this.size);
                 app.graph.setDirtyCanvas(true, true);
@@ -47,10 +182,19 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
                 };
             };
 
-            if (nodeName === "SaveImageExtended" || nodeName === "SaveAudioExtended" || nodeName === "SaveVideoExtended" || nodeName === "SaveWEBMExtended") {
+            if (
+                nodeName === "SaveImageExtended" ||
+                nodeName === "SaveAudioExtended" ||
+                nodeName === "SaveVideoExtended" ||
+                nodeName === "SaveWEBMExtended"
+            ) {
                 attach("save_to_cloud");
                 attach("save_to_local");
-            } else if (nodeName === "LoadImageExtended" || nodeName === "LoadAudioExtended" || nodeName === "LoadVideoExtended") {
+            } else if (
+                nodeName === "LoadImageExtended" ||
+                nodeName === "LoadAudioExtended" ||
+                nodeName === "LoadVideoExtended"
+            ) {
                 attach("load_from_cloud");
             }
 

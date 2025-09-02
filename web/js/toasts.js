@@ -12,19 +12,34 @@ export async function setupToasts(app) {
         }
     };
 
+    // Slightly friendlier copy for common events
+    const startEmoji = {
+        save: "💾",
+        load: "📥",
+        audio: "🎧",
+        video: "🎬",
+        ok: "✅",
+        error: "⚠️",
+    };
+
     const handleSaveStatus = (d) => {
         const provider = d?.provider ? ` via ${d.provider}` : "";
         switch (d?.phase) {
             case "start":
                 toast(
                     "info",
-                    "Saving images",
+                    `${startEmoji.save} Saving images`,
                     `Starting save${provider}...`,
                     2200
                 );
                 break;
             case "error":
-                toast("error", "Save failed", d?.message || "Unknown error", 5000);
+                toast(
+                    "error",
+                    `${startEmoji.error} Save failed`,
+                    d?.message || "Unknown error",
+                    5000
+                );
                 break;
             case "complete": {
                 const parts = [];
@@ -35,7 +50,7 @@ export async function setupToasts(app) {
                 const detail = parts.length
                     ? `Saved ${parts.join(" and ")}${provider}.`
                     : `Completed${provider}.`;
-                toast("success", "Images saved", detail, 3600);
+                toast("success", `${startEmoji.ok} Images saved`, detail, 3600);
                 break;
             }
             default:
@@ -49,18 +64,23 @@ export async function setupToasts(app) {
             case "start":
                 toast(
                     "info",
-                    "Loading images",
+                    `${startEmoji.load} Loading images`,
                     `Starting load${provider}...`,
                     2200
                 );
                 break;
             case "error":
-                toast("error", "Load failed", d?.message || "Unknown error", 5000);
+                toast(
+                    "error",
+                    `${startEmoji.error} Load failed`,
+                    d?.message || "Unknown error",
+                    5000
+                );
                 break;
             case "complete":
                 toast(
                     "success",
-                    "Images loaded",
+                    `${startEmoji.ok} Images loaded`,
                     `Loaded ${d?.count ?? "?"} image(s)${provider}.`,
                     3600
                 );
@@ -84,17 +104,31 @@ export async function setupToasts(app) {
         const provider = d?.provider ? ` via ${d.provider}` : "";
         switch (d?.phase) {
             case "start":
-                toast("info", "Saving audio", `Starting save${provider}...`, 2200);
+                toast(
+                    "info",
+                    `${startEmoji.save} Saving audio`,
+                    `Starting save${provider}...`,
+                    2200
+                );
                 break;
             case "error":
-                toast("error", "Save failed", d?.message || "Unknown error", 5000);
+                toast(
+                    "error",
+                    `${startEmoji.error} Save failed`,
+                    d?.message || "Unknown error",
+                    5000
+                );
                 break;
             case "complete": {
                 const parts = [];
-                if (typeof d?.count_local === "number") parts.push(`${d.count_local} local`);
-                if (typeof d?.count_cloud === "number") parts.push(`${d.count_cloud} cloud`);
-                const detail = parts.length ? `Saved ${parts.join(" and ")}${provider}.` : `Completed${provider}.`;
-                toast("success", "Audio saved", detail, 3600);
+                if (typeof d?.count_local === "number")
+                    parts.push(`${d.count_local} local`);
+                if (typeof d?.count_cloud === "number")
+                    parts.push(`${d.count_cloud} cloud`);
+                const detail = parts.length
+                    ? `Saved ${parts.join(" and ")}${provider}.`
+                    : `Completed${provider}.`;
+                toast("success", `${startEmoji.ok} Audio saved`, detail, 3600);
                 break;
             }
             default:
@@ -106,13 +140,28 @@ export async function setupToasts(app) {
         const provider = d?.provider ? ` from ${d.provider}` : " from local";
         switch (d?.phase) {
             case "start":
-                toast("info", "Loading audio", `Starting load${provider}...`, 2200);
+                toast(
+                    "info",
+                    `${startEmoji.load} Loading audio`,
+                    `Starting load${provider}...`,
+                    2200
+                );
                 break;
             case "error":
-                toast("error", "Load failed", d?.message || "Unknown error", 5000);
+                toast(
+                    "error",
+                    `${startEmoji.error} Load failed`,
+                    d?.message || "Unknown error",
+                    5000
+                );
                 break;
             case "complete":
-                toast("success", "Audio loaded", `Loaded ${d?.count ?? "?"} item(s)${provider}.`, 3600);
+                toast(
+                    "success",
+                    `${startEmoji.ok} Audio loaded`,
+                    `Loaded ${d?.count ?? "?"} item(s)${provider}.`,
+                    3600
+                );
                 break;
             default:
                 break;
@@ -125,17 +174,31 @@ export async function setupToasts(app) {
         const provider = d?.provider ? ` via ${d.provider}` : "";
         switch (d?.phase) {
             case "start":
-                toast("info", "Saving video", `Starting save${provider}...`, 2200);
+                toast(
+                    "info",
+                    `${startEmoji.save} Saving video`,
+                    `Starting save${provider}...`,
+                    2200
+                );
                 break;
             case "error":
-                toast("error", "Save failed", d?.message || "Unknown error", 5000);
+                toast(
+                    "error",
+                    `${startEmoji.error} Save failed`,
+                    d?.message || "Unknown error",
+                    5000
+                );
                 break;
             case "complete": {
                 const parts = [];
-                if (typeof d?.count_local === "number") parts.push(`${d.count_local} local`);
-                if (typeof d?.count_cloud === "number") parts.push(`${d.count_cloud} cloud`);
-                const detail = parts.length ? `Saved ${parts.join(" and ")}${provider}.` : `Completed${provider}.`;
-                toast("success", "Video saved", detail, 3600);
+                if (typeof d?.count_local === "number")
+                    parts.push(`${d.count_local} local`);
+                if (typeof d?.count_cloud === "number")
+                    parts.push(`${d.count_cloud} cloud`);
+                const detail = parts.length
+                    ? `Saved ${parts.join(" and ")}${provider}.`
+                    : `Completed${provider}.`;
+                toast("success", `${startEmoji.ok} Video saved`, detail, 3600);
                 break;
             }
             default:
@@ -147,13 +210,28 @@ export async function setupToasts(app) {
         const provider = d?.provider ? ` from ${d.provider}` : " from local";
         switch (d?.phase) {
             case "start":
-                toast("info", "Loading video", `Starting load${provider}...`, 2200);
+                toast(
+                    "info",
+                    `${startEmoji.load} Loading video`,
+                    `Starting load${provider}...`,
+                    2200
+                );
                 break;
             case "error":
-                toast("error", "Load failed", d?.message || "Unknown error", 5000);
+                toast(
+                    "error",
+                    `${startEmoji.error} Load failed`,
+                    d?.message || "Unknown error",
+                    5000
+                );
                 break;
             case "complete":
-                toast("success", "Video loaded", `Completed${provider}.`, 3600);
+                toast(
+                    "success",
+                    `${startEmoji.ok} Video loaded`,
+                    `Completed${provider}.`,
+                    3600
+                );
                 break;
             default:
                 break;
