@@ -93,7 +93,9 @@ class SaveImageExtended:
             },
         }
 
-    RETURN_TYPES = ()
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("filenames",)
+    OUTPUT_IS_LIST = (True,)
     FUNCTION = "save_images_extended"
 
     OUTPUT_NODE = True
@@ -169,6 +171,7 @@ class SaveImageExtended:
                 local_save_dir = full_output_folder
             ui_subfolder = os.path.join(subfolder, local_folder_path) if subfolder else local_folder_path
         results = list()
+        filenames = list()
         cloud_results = list()
         cloud_items = list()
         total = len(images)
@@ -201,6 +204,7 @@ class SaveImageExtended:
             buffer = BytesIO()
             img.save(buffer, format="PNG", pnginfo=metadata, compress_level=self.compress_level)
             png_bytes = buffer.getvalue()
+            filenames.append(file)
 
             if save_to_local:
                 try:
@@ -303,4 +307,4 @@ class SaveImageExtended:
             except Exception:
                 pass
 
-        return { "ui": { "images": results }, "cloud": cloud_results }
+        return { "ui": { "images": results }, "result": (filenames,), "cloud": cloud_results }

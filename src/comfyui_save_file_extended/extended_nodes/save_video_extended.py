@@ -57,7 +57,9 @@ class SaveWEBMExtended:
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
-    RETURN_TYPES = ()
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("filenames",)
+    OUTPUT_IS_LIST = (True,)
     FUNCTION = "save_images"
 
     OUTPUT_NODE = True
@@ -112,6 +114,7 @@ class SaveWEBMExtended:
         out_path = os.path.join(local_save_dir, file)
 
         _notify("start", {"total": 1, "provider": cloud_provider if save_to_cloud else None})
+        filenames: list[str] = []
 
         container = av.open(out_path, mode="w")
         if prompt is not None:
@@ -144,6 +147,7 @@ class SaveWEBMExtended:
                 "type": self.type
             })
             _notify("progress", {"where": "local", "current": 1, "total": 1, "filename": file})
+        filenames.append(file)
 
         if save_to_cloud:
             try:
@@ -175,7 +179,7 @@ class SaveWEBMExtended:
             except Exception:
                 pass
 
-        return {"ui": {"images": results, "animated": (True,)}, "cloud": cloud_results}
+        return {"ui": {"images": results, "animated": (True,)}, "result": (filenames,), "cloud": cloud_results}
 
 
 class SaveVideoExtended(ComfyNodeABC):
@@ -220,7 +224,9 @@ class SaveVideoExtended(ComfyNodeABC):
             },
         }
 
-    RETURN_TYPES = ()
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("filenames",)
+    OUTPUT_IS_LIST = (True,)
     FUNCTION = "save_video"
 
     OUTPUT_NODE = True
@@ -275,6 +281,7 @@ class SaveVideoExtended(ComfyNodeABC):
             ui_subfolder = os.path.join(subfolder, local_folder_path) if subfolder else local_folder_path
 
         results: list[FileLocator] = list()
+        filenames: list[str] = []
         saved_metadata = None
         if not args.disable_metadata:
             metadata = {}
@@ -304,6 +311,7 @@ class SaveVideoExtended(ComfyNodeABC):
                 "type": self.type
             })
             _notify("progress", {"where": "local", "current": 1, "total": 1, "filename": file})
+        filenames.append(file)
 
         if save_to_cloud:
             try:
@@ -335,4 +343,4 @@ class SaveVideoExtended(ComfyNodeABC):
             except Exception:
                 pass
 
-        return { "ui": { "images": results, "animated": (True,) }, "cloud": cloud_results }
+        return { "ui": { "images": results, "animated": (True,) }, "result": (filenames,), "cloud": cloud_results }

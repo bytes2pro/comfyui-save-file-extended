@@ -70,7 +70,9 @@ class SaveAudioExtended:
             },
         }
 
-    RETURN_TYPES = ()
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("filenames",)
+    OUTPUT_IS_LIST = (True,)
     FUNCTION = "save_audio"
     OUTPUT_NODE = True
     CATEGORY = "audio"
@@ -202,6 +204,7 @@ class SaveAudioExtended:
             ui_subfolder = os.path.join(subfolder, local_folder_path) if subfolder else local_folder_path
 
         results: list[FileLocator] = []
+        filenames: list[str] = []
         cloud_results = []
         cloud_items = []
 
@@ -229,6 +232,7 @@ class SaveAudioExtended:
             except Exception as e:
                 _notify("error", {"message": str(e)})
                 raise
+            filenames.append(file)
 
             if save_to_local:
                 try:
@@ -269,7 +273,7 @@ class SaveAudioExtended:
         else:
             _notify("complete", {"count_local": len(results), "count_cloud": 0, "provider": None})
 
-        return {"ui": {"audio": results}, "cloud": cloud_results}
+        return {"ui": {"audio": results}, "result": (filenames,), "cloud": cloud_results}
 
 
 class SaveAudioMP3Extended:
@@ -288,7 +292,9 @@ class SaveAudioMP3Extended:
         spec["optional"]["quality"] = (["V0", "128k", "320k"], {"default": "V0"})
         return spec
 
-    RETURN_TYPES = ()
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("filenames",)
+    OUTPUT_IS_LIST = (True,)
     FUNCTION = "save_audio"
     OUTPUT_NODE = True
     CATEGORY = "audio"
@@ -313,7 +319,9 @@ class SaveAudioOpusExtended:
         spec["optional"]["quality"] = (["64k", "96k", "128k", "192k", "320k"], {"default": "128k"})
         return spec
 
-    RETURN_TYPES = ()
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("filenames",)
+    OUTPUT_IS_LIST = (True,)
     FUNCTION = "save_audio"
     OUTPUT_NODE = True
     CATEGORY = "audio"
