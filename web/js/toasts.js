@@ -6,6 +6,7 @@ export async function setupToasts(app) {
                 summary,
                 detail,
                 life,
+                closable: true,
             });
         } catch (e) {
             // ignore
