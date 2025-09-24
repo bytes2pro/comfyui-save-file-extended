@@ -65,6 +65,7 @@ class SaveImageExtended:
                 "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "Filename prefix. Supports tokens like %date:yyyy-MM-dd% and node field tokens (e.g. %Empty Latent Image.width%)."})
             },
             "optional": {
+                "custom_filename": ("STRING", {"default": "", "placeholder": "Custom filename (optional)", "tooltip": "Custom filename for saved images. If empty, uses the default filename generation with prefix and UUID. Do not include file extension."}),
                 # Cloud section (acts as a header toggle)
                 "save_to_cloud": ("BOOLEAN", {"default": True, "socketless": True, "label_on": "Enabled", "label_off": "Disabled", "tooltip": "Enable uploading to a cloud provider. Configure provider, destination, and credentials below."}),
                 "cloud_provider": ([
@@ -124,6 +125,7 @@ class SaveImageExtended:
     def save_images_extended(self, 
         images, 
         filename_prefix="ComfyUI",
+        custom_filename="",
         save_to_cloud=True,
         cloud_provider="AWS S3",
         bucket_link="",
@@ -198,8 +200,17 @@ class SaveImageExtended:
                     for x in extra_pnginfo:
                         metadata.add_text(x, json.dumps(extra_pnginfo[x]))
 
-            filename_with_batch_num = filename.replace("%batch_num%", str(batch_number))
-            file = f"{filename_with_batch_num}-{uuid4()}.png"
+            # Use custom filename if provided, otherwise use default filename generation
+            if custom_filename and custom_filename.strip():
+                # Use custom filename with batch number if multiple images
+                if len(images) > 1:
+                    file = f"{custom_filename.strip()}_{batch_number:03d}.png"
+                else:
+                    file = f"{custom_filename.strip()}.png"
+            else:
+                # Use default filename generation
+                filename_with_batch_num = filename.replace("%batch_num%", str(batch_number))
+                file = f"{filename_with_batch_num}-{uuid4()}.png"
             # Encode to PNG bytes once
             buffer = BytesIO()
             img.save(buffer, format="PNG", pnginfo=metadata, compress_level=self.compress_level)
