@@ -202,13 +202,11 @@ class SaveImageExtended:
 
             # Use custom filename if provided, otherwise use default filename generation
             if custom_filename and custom_filename.strip():
-                # Use custom filename with batch number if multiple images
                 if len(images) > 1:
                     file = f"{custom_filename.strip()}_{batch_number:03d}.png"
                 else:
                     file = f"{custom_filename.strip()}.png"
             else:
-                # Use default filename generation
                 filename_with_batch_num = filename.replace("%batch_num%", str(batch_number))
                 file = f"{filename_with_batch_num}-{uuid4()}.png"
             # Encode to PNG bytes once
