@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (current: 0.0.4)"
+        description: "Release version (current: 0.0.5)"
         required: true
         type: string
   push:
