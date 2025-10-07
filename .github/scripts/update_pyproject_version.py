@@ -14,9 +14,6 @@ PYPROJECT_PATH = ROOT / "pyproject.toml"
 WORKFLOW_PATH = ROOT / ".github/workflows/publish_node.yml"
 
 PYPROJECT_PATTERN = re.compile(r'(?m)^(\s*version\s*=\s*)["\'][^"\']+["\']')
-DESC_PATTERN = re.compile(
-    r'(description:\s*Release version\s*\()(?:current:[^)]*|e\.g\.[^)]*)(\))'
-)
 
 
 def update_pyproject(version: str) -> None:
@@ -29,20 +26,20 @@ def update_pyproject(version: str) -> None:
 
 def update_workflow_description(version: str) -> None:
     text = WORKFLOW_PATH.read_text(encoding="utf-8")
-    new_text, count = DESC_PATTERN.subn(
-        rf"\1\"current: {version}\"\2", text, count=1
-    )
-    if count == 0:
-        placeholder = "description: Release version (e.g."
-        if placeholder in text:
-            new_text = text.replace(
-                "description: \"Release version (e.g. 0.0.4)\"",
-                f"description: \"Release version (current: {version})\"",
-                1,
+    lines = text.splitlines()
+
+    for idx, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("description:") and "Release version" in stripped:
+            prefix = line[: line.index("description:")]
+            lines[idx] = (
+                f'{prefix}description: "Release version (current: {version})"'
             )
-        else:
-            raise SystemExit("Failed to update description in workflow file")
-    WORKFLOW_PATH.write_text(new_text, encoding="utf-8")
+            break
+    else:
+        raise SystemExit("Failed to update description in workflow file")
+
+    WORKFLOW_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def normalize_version(value: str | None) -> str:
