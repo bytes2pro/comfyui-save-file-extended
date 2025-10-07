@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "comfyui-save-file-extended"
-version = "0.0.4"
+version = "0.0.3"
 description = "A collection of custom nodes for ComfyUI that offers an extension to the existing Save and Preview Image/Video nodes allowing directly adding and previewing the files from your preferred cloud storage providers (S3/DropBox/Google Drive/...)"
 authors = [
   {name = "RUiNtheExtinct", email = "deepkarma001@gmail.com"},

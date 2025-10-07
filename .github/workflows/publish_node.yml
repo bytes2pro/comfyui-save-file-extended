@@ -75,7 +75,7 @@ jobs:
           if git diff --quiet; then
             echo "No changes detected after version update; nothing to commit."
           else
-            git add pyproject.toml
+            git add pyproject.toml .github/workflows/publish_node.yml
             git commit -m "chore: release v${RELEASE_VERSION}"
             git push origin HEAD:main
           fi
