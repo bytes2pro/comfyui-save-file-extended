@@ -1,21 +1,187 @@
 name: 📦 Publish to Comfy registry
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: Release version (e.g. 0.0.4)
+        required: true
+        type: string
   push:
-    tags:
-      - '*'
+    branches: [main]
 
 permissions:
+  contents: write
   issues: write
 
 jobs:
   publish-node:
+    if: github.event_name == 'workflow_dispatch' || github.actor != 'github-actions[bot]'
     name: Publish Custom Node to registry
     runs-on: ubuntu-latest
     steps:
       - name: ♻️ Check out code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 🧭 Ensure main branch (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout main
+          git pull --ff-only origin main
+      - name: 🧮 Normalize version input
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          set -euo pipefail
+          version="${INPUT_VERSION}"
+          version="${version/#v/}"
+          version="${version/#V/}"
+
+          if [[ -z "${version}" ]]; then
+            echo "Version input cannot be empty." >&2
+            exit 1
+          fi
+
+          if [[ ! "${version}" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "Version '${version}' is not in a numeric dotted format (e.g. 0.0.4)." >&2
+            exit 1
+          fi
+
+          echo "RELEASE_VERSION=${version}" >> "$GITHUB_ENV"
+      - name: 📝 Update pyproject version (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${RELEASE_VERSION}" ]]; then
+            echo "RELEASE_VERSION environment variable not set." >&2
+            exit 1
+          fi
+
+          python - <<'PY'
+            import os
+            import pathlib
+            import re
+            import sys
+
+            version = os.environ.get("RELEASE_VERSION")
+            if not version:
+                sys.exit("RELEASE_VERSION is required")
+
+            path = pathlib.Path("pyproject.toml")
+            text = path.read_text()
+            pattern = r"(?m)^(\s*version\s*=\s*)['\"][^'\"]+['\"]"
+            replacement = fr"\1\"{version}\""
+            new_text, count = re.subn(pattern, replacement, text, count=1)
+            if count != 1:
+                sys.exit("Failed to update version in pyproject.toml")
+
+            path.write_text(new_text)
+          PY
+      - name: 💾 Commit version bump (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet; then
+            echo "No changes detected after version update; nothing to commit."
+          else
+            git add pyproject.toml
+            git commit -m "chore: release v${RELEASE_VERSION}"
+            git push origin HEAD:main
+          fi
+      - name: 🔍 Detect version change
+        id: version_check
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          read_current_version() {
+            python -c 'import pathlib, re, sys; data = pathlib.Path("pyproject.toml").read_text(); match = re.search(r"^\s*version\s*=\s*[\"\']([^\"\']+)[\"\']", data, re.MULTILINE); print(match.group(1)) if match else sys.exit("Version not found in pyproject.toml")'
+          }
+
+          read_previous_version() {
+            git show HEAD^:pyproject.toml 2>/dev/null | python -c 'import re, sys; data = sys.stdin.read(); match = re.search(r"^\s*version\s*=\s*[\"\']([^\"\']+)[\"\']", data, re.MULTILINE); print(match.group(1)) if match else None'
+            || true
+          }
+
+          current_version="$(read_current_version)"
+          previous_version=""
+
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            if previous="$(read_previous_version)"; then
+              previous_version="${previous}"
+            fi
+          fi
+
+          if [[ -z "${previous_version}" ]]; then
+            echo "Previous version not found; assuming release required."
+            previous_version=""
+          fi
+
+          echo "current_version=${current_version}" >> "$GITHUB_OUTPUT"
+          echo "previous_version=${previous_version}" >> "$GITHUB_OUTPUT"
+
+          if [[ "${current_version}" != "${previous_version}" ]]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "Detected version change: ${previous_version:-none} -> ${current_version}"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "No version change detected; skipping release."
+          fi
+      - name: 🚀 Create release branch and tag
+        if: steps.version_check.outputs.should_publish == 'true'
+        id: create_refs
+        shell: bash
+        env:
+          VERSION: ${{ steps.version_check.outputs.current_version }}
+        run: |
+          set -euo pipefail
+
+          release_ref="v${VERSION}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --heads origin "${release_ref}" | grep -q "${release_ref}$"; then
+            echo "Branch ${release_ref} already exists on origin; skipping branch creation."
+          else
+            echo "Pushing branch ${release_ref}"
+            git push origin "HEAD:refs/heads/${release_ref}"
+          fi
+
+          if git ls-remote --tags origin "${release_ref}" | grep -q "${release_ref}$"; then
+            echo "Tag ${release_ref} already exists on origin; skipping creation."
+          else
+            if git rev-parse "refs/tags/${release_ref}" >/dev/null 2>&1; then
+              echo "Local tag ${release_ref} already exists; skipping local creation."
+            else
+              git tag "${release_ref}"
+            fi
+            git push origin "refs/tags/${release_ref}"
+            echo "Created and pushed tag ${release_ref}."
+          fi
+
+          echo "release_ref=${release_ref}" >> "$GITHUB_OUTPUT"
       - name: 📦 Publish Custom Node
+        if: steps.version_check.outputs.should_publish == 'true'
         uses: Comfy-Org/publish-node-action@main
         with:
           personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+      - name: ℹ️ Release skipped
+        if: steps.version_check.outputs.should_publish != 'true'
+        run: echo "No version change detected; publish step skipped."
