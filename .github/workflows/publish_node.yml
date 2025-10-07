@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN_EXTENDED }}
+          token: ${{ secrets.GH_TOKEN_EXTENDED }}
       - name: 🧭 Ensure main branch (manual run)
         if: github.event_name == 'workflow_dispatch'
         shell: bash
