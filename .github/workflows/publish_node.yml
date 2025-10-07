@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Release version (e.g. 0.0.4)
+        description: "Release version (current: 0.0.3)"
         required: true
         type: string
   push:
@@ -60,32 +60,7 @@ jobs:
           RELEASE_VERSION: ${{ env.RELEASE_VERSION }}
         run: |
           set -euo pipefail
-
-          if [[ -z "${RELEASE_VERSION}" ]]; then
-            echo "RELEASE_VERSION environment variable not set." >&2
-            exit 1
-          fi
-
-          python - <<'PY'
-            import os
-            import pathlib
-            import re
-            import sys
-
-            version = os.environ.get("RELEASE_VERSION")
-            if not version:
-                sys.exit("RELEASE_VERSION is required")
-
-            path = pathlib.Path("pyproject.toml")
-            text = path.read_text()
-            pattern = r"(?m)^(\s*version\s*=\s*)['\"][^'\"]+['\"]"
-            replacement = fr"\1\"{version}\""
-            new_text, count = re.subn(pattern, replacement, text, count=1)
-            if count != 1:
-                sys.exit("Failed to update version in pyproject.toml")
-
-            path.write_text(new_text)
-          PY
+          python .github/scripts/update_pyproject_version.py
       - name: 💾 Commit version bump (manual run)
         if: github.event_name == 'workflow_dispatch'
         shell: bash
