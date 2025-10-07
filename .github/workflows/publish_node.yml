@@ -111,12 +111,39 @@ jobs:
           set -euo pipefail
 
           read_current_version() {
-            python -c 'import pathlib, re, sys; data = pathlib.Path("pyproject.toml").read_text(); match = re.search(r"^\s*version\s*=\s*[\"\']([^\"\']+)[\"\']", data, re.MULTILINE); print(match.group(1)) if match else sys.exit("Version not found in pyproject.toml")'
+          python - <<'PY'
+            import pathlib
+            import re
+            import sys
+
+            data = pathlib.Path("pyproject.toml").read_text()
+            match = re.search(r'^\s*version\s*=\s*["\']([^"\']+)["\']', data, re.MULTILINE)
+            if match:
+                print(match.group(1))
+            else:
+                sys.exit("Version not found in pyproject.toml")
+          PY
           }
 
           read_previous_version() {
-            git show HEAD^:pyproject.toml 2>/dev/null | python -c 'import re, sys; data = sys.stdin.read(); match = re.search(r"^\s*version\s*=\s*[\"\']([^\"\']+)[\"\']", data, re.MULTILINE); print(match.group(1)) if match else None'
-            || true
+          python - <<'PY'
+            import re
+            import subprocess
+            import sys
+
+            try:
+                data = subprocess.check_output(
+                    ["git", "show", "HEAD^:pyproject.toml"],
+                    stderr=subprocess.DEVNULL,
+                    text=True,
+                )
+            except subprocess.CalledProcessError:
+                sys.exit(0)
+
+            match = re.search(r'^\s*version\s*=\s*["\']([^"\']+)["\']', data, re.MULTILINE)
+            if match:
+                print(match.group(1))
+            PY
           }
 
           current_version="$(read_current_version)"
