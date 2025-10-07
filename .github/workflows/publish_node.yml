@@ -111,11 +111,12 @@ jobs:
           set -euo pipefail
 
           read_current_version() {
-            python -c "import pathlib, re, sys; data = pathlib.Path('pyproject.toml').read_text(); pattern = r'^\\s*version\\s*=\\s*[\"\\']([^\"\\']+)[\"\\']'; match = re.search(pattern, data, re.MULTILINE); print(match.group(1)) if match else sys.exit('Version not found in pyproject.toml')"
+            python -c 'import pathlib, re, sys; data = pathlib.Path("pyproject.toml").read_text(); pattern = r"^\\s*version\\s*=\\s*[\"\']([^\"\']+)[\"\']"; match = re.search(pattern, data, re.MULTILINE); print(match.group(1)) if match else sys.exit("Version not found in pyproject.toml")'
           }
 
           read_previous_version() {
-            python -c "import re, subprocess; result = subprocess.run(['git', 'show', 'HEAD^:pyproject.toml'], capture_output=True, text=True); data = result.stdout; pattern = r'^\\s*version\\s*=\\s*[\"\\']([^\"\\']+)[\"\\']'; match = re.search(pattern, data, re.MULTILINE);\
+            python -c 'import re, subprocess, sys; result = subprocess.run(["git", "show", "HEAD^:pyproject.toml"], capture_output=True, text=True); pattern = r"^\\s*version\\s*=\\s*[\"\']([^\"\']+)[\"\']"; match = re.search(pattern, result.stdout, re.MULTILINE); print(match.group(1)) if result.returncode == 0 and match else sys.exit(0)'
+          }
 
           current_version="$(read_current_version)"
           previous_version=""
