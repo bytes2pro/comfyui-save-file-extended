@@ -18,7 +18,9 @@ PYPROJECT_PATTERN = re.compile(r'(?m)^(\s*version\s*=\s*)["\'][^"\']+["\']')
 
 def update_pyproject(version: str) -> None:
     text = PYPROJECT_PATH.read_text(encoding="utf-8")
-    new_text, count = PYPROJECT_PATTERN.subn(rf"\1\"{version}\"", text, count=1)
+    new_text, count = PYPROJECT_PATTERN.subn(
+        lambda match: f'{match.group(1)}"{version}"', text, count=1
+    )
     if count != 1:
         raise SystemExit("Failed to update version in pyproject.toml")
     PYPROJECT_PATH.write_text(new_text, encoding="utf-8")
