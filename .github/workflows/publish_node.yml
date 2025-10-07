@@ -109,39 +109,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
-          read_current_version() {
-            python -c 'import pathlib, re, sys; data = pathlib.Path("pyproject.toml").read_text(); pattern = r"^\\s*version\\s*=\\s*[\"\']([^\"\']+)[\"\']"; match = re.search(pattern, data, re.MULTILINE); print(match.group(1)) if match else sys.exit("Version not found in pyproject.toml")'
-          }
-
-          read_previous_version() {
-            python -c 'import re, subprocess, sys; result = subprocess.run(["git", "show", "HEAD^:pyproject.toml"], capture_output=True, text=True); pattern = r"^\\s*version\\s*=\\s*[\"\']([^\"\']+)[\"\']"; match = re.search(pattern, result.stdout, re.MULTILINE); print(match.group(1)) if result.returncode == 0 and match else sys.exit(0)'
-          }
-
-          current_version="$(read_current_version)"
-          previous_version=""
-
-          if git rev-parse HEAD^ >/dev/null 2>&1; then
-            if previous="$(read_previous_version)"; then
-              previous_version="${previous}"
-            fi
-          fi
-
-          if [[ -z "${previous_version}" ]]; then
-            echo "Previous version not found; assuming release required."
-            previous_version=""
-          fi
-
-          echo "current_version=${current_version}" >> "$GITHUB_OUTPUT"
-          echo "previous_version=${previous_version}" >> "$GITHUB_OUTPUT"
-
-          if [[ "${current_version}" != "${previous_version}" ]]; then
-            echo "should_publish=true" >> "$GITHUB_OUTPUT"
-            echo "Detected version change: ${previous_version:-none} -> ${current_version}"
-          else
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
-            echo "No version change detected; skipping release."
-          fi
+          python .github/scripts/detect_version_change.py
       - name: 🚀 Create release branch and tag
         if: steps.version_check.outputs.should_publish == 'true'
         id: create_refs
