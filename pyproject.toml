@@ -99,6 +99,7 @@ ignore = [
     "F403",  # Allow star imports (from module import *)
     "F405",  # Allow star imports (from module import *)
     'W293',  # Allow blank line contains whitespace
+    "F841",  # Allow unused variable
 ]
 
 [tool.ruff.lint.flake8-quotes]

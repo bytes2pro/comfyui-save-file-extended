@@ -264,7 +264,7 @@ class SaveAudioExtended:
                         "subfolder": ui_subfolder,
                         "type": self.type
                     })
-                    _notify("progress", {"where": "local", "current": counter, "total": total, "filename": file})
+                    _notify("progress", {"where": "local", "current": batch_number + 1, "total": total, "filename": file})
                 except Exception as e:
                     _notify("error", {"message": str(e)})
 
