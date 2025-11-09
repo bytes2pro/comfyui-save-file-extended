@@ -2,6 +2,82 @@
 import sys
 from unittest.mock import MagicMock
 
+# Mock torch and torchaudio (heavy dependencies not needed for validation)
+mock_torch = MagicMock()
+# Add common torch attributes that might be accessed
+mock_torch.randn = MagicMock()
+mock_torch.rand = MagicMock()
+mock_torch.tensor = MagicMock()
+mock_torch.Tensor = MagicMock()
+mock_torch.int16 = MagicMock()
+mock_torch.float = MagicMock()
+sys.modules["torch"] = mock_torch
+
+mock_torchaudio = MagicMock()
+mock_torchaudio.functional = MagicMock()
+mock_torchaudio.functional.resample = MagicMock()
+sys.modules["torchaudio"] = mock_torchaudio
+
+# Mock numpy
+mock_numpy = MagicMock()
+mock_numpy.ndarray = MagicMock()
+sys.modules["numpy"] = mock_numpy
+sys.modules["np"] = mock_numpy
+
+# Mock PIL/Pillow
+mock_pil = MagicMock()
+mock_pil.Image = MagicMock()
+mock_pil.PngImagePlugin = MagicMock()
+mock_pil.PngImagePlugin.PngInfo = MagicMock()
+sys.modules["PIL"] = mock_pil
+sys.modules["PIL.Image"] = mock_pil.Image
+sys.modules["PIL.PngImagePlugin"] = mock_pil.PngImagePlugin
+
+# Mock av (PyAV)
+mock_av = MagicMock()
+mock_av.open = MagicMock()
+mock_av.AudioFrame = MagicMock()
+sys.modules["av"] = mock_av
+
+# Mock cloud provider libraries (may not be installed in validation environment)
+def _mock_module(name):
+    """Create a mock module, handling nested dotted names."""
+    if name in sys.modules:
+        return sys.modules[name]
+    
+    parts = name.split(".")
+    parent = None
+    for i, part in enumerate(parts):
+        full_name = ".".join(parts[:i+1])
+        if full_name not in sys.modules:
+            mock = MagicMock()
+            sys.modules[full_name] = mock
+            if parent:
+                setattr(parent, part, mock)
+            parent = mock
+        else:
+            parent = sys.modules[full_name]
+    return sys.modules[name]
+
+# Mock common cloud provider libraries
+for module_name in [
+    "boto3",
+    "azure",
+    "azure.storage",
+    "azure.storage.blob",
+    "google",
+    "google.cloud",
+    "google.cloud.storage",
+    "google.oauth2",
+    "google.oauth2.service_account",
+    "b2sdk",
+    "b2sdk.v2",
+    "dropbox",
+    "supabase",
+    "requests",
+]:
+    _mock_module(module_name)
+
 # Mock folder_paths
 mock_folder_paths = MagicMock()
 mock_folder_paths.get_output_directory.return_value = "/tmp/comfyui_output"
