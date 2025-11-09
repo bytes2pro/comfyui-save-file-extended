@@ -7,6 +7,8 @@ Save audio locally and/or upload to a cloud provider. Supports WAV, FLAC, MP3, a
 -   **audio (AUDIO)**: `{ waveform: [B,C,T], sample_rate: int }`.
 -   **filename_prefix (STRING)**: Supports tokens like `%date:yyyy-MM-dd%` and node field tokens.
 -   **format (CHOICE)**: `wav | flac | mp3 | opus`.
+-   **filename (STRING, optional)**: Exact filename to use. If provided, this will be used directly (extension auto-appended if missing). If empty, falls back to `custom_filename` or UUID-based generation. Include file extension.
+-   **custom_filename (STRING, optional)**: Custom filename prefix (without extension). If provided and `filename` is empty, uses this with format extension. If both are empty, uses UUID-based filename generation.
 -   **quality (CHOICE)**:
     -   MP3: `V0 | 128k | 320k` (matches core node)
     -   Opus: `64k | 96k | 128k | 192k | 320k` (matches core node)

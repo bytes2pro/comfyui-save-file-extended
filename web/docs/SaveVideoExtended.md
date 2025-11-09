@@ -14,6 +14,8 @@ Save a video locally and/or upload it to a cloud provider in one step. Shows rea
 -   **filename_prefix (STRING)**: Supports tokens like `%date:yyyy-MM-dd%` and node field tokens (e.g., `%Empty Latent Image.width%`).
 -   **format (CHOICE)**: Container format (e.g., auto/mp4/webm/mkv).
 -   **codec (CHOICE)**: Video codec (e.g., auto/h264/vp9/av1).
+-   **filename (STRING, optional)**: Exact filename to use. If provided, this will be used directly (extension auto-appended if missing based on `format`). If empty, falls back to `custom_filename` or UUID-based generation. Include file extension.
+-   **custom_filename (STRING, optional)**: Custom filename prefix (without extension). If provided and `filename` is empty, uses this with format-specific extension. If both are empty, uses UUID-based filename generation.
 -   **save_to_cloud (BOOLEAN)**: Enable uploads to a provider.
 -   **cloud_provider (CHOICE)**: AWS S3, S3-Compatible, GCS, Azure Blob, Backblaze B2, Google Drive, Dropbox, OneDrive, FTP, Supabase, UploadThing.
 -   **bucket_link (STRING)**: Provider-specific destination identifier (examples below).

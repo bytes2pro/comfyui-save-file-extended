@@ -34,7 +34,13 @@ dev = [
     "mypy",  # linting
     "pre-commit", # runs linting on commit
     "pytest",  # testing
+    "pytest-cov",  # coverage plugin for pytest
     "ruff",  # linting
+    # Test dependencies (also used by nodes, but provided by ComfyUI in production)
+    "torch",  # for creating test data and node functionality
+    "torchaudio",  # for audio node tests
+    "numpy",  # for image/audio processing tests
+    "pillow",  # for image processing tests
 ]
 
 [project.urls]
