@@ -89,6 +89,10 @@ select = [
     "F",  # The "F" series in Ruff stands for "Pyflakes" rules, which catch various Python syntax errors and undefined names.
     # See all rules here: https://docs.astral.sh/ruff/rules/#pyflakes-f
 ]
+ignore = [
+    "F403",  # Allow star imports (from module import *)
+    "F405",  # Allow star imports (from module import *)
+]
 
 [tool.ruff.lint.flake8-quotes]
 inline-quotes = "double"
