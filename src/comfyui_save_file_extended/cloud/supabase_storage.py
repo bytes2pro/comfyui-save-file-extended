@@ -70,7 +70,7 @@ class Uploader:
     def _get_client(api_key: str):
         url, key = _parse_supabase_creds(api_key)
         return create_client(url, key)
-    
+
     @staticmethod
     @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:

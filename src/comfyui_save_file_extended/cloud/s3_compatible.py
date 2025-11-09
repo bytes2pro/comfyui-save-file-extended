@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import io
 import json
+import mimetypes
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
 
 import boto3
-import mimetypes
+
 from ._logging import log_exceptions
 
 
@@ -75,7 +76,7 @@ class Uploader:
         if region:
             client_kwargs["region_name"] = region
         return boto3.client("s3", **client_kwargs)
-    
+
     @staticmethod
     @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:

@@ -5,6 +5,7 @@ from typing import Any, Dict
 from urllib.parse import urlparse
 
 import requests
+
 from ._logging import log_exceptions
 
 
@@ -178,7 +179,6 @@ class Uploader:
     @staticmethod
     @log_exceptions
     def download(key_or_filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> bytes:
-        access_token = _get_access_token(api_key)
         path = _build_path(bucket_link, cloud_folder_path, key_or_filename)
         url = f"https://graph.microsoft.com/v1.0/me/drive/root:{path}:/content"
         headers = _get_headers(api_key)
@@ -189,7 +189,6 @@ class Uploader:
     @staticmethod
     @log_exceptions
     def download_many(keys: list[str], bucket_link: str, cloud_folder_path: str, api_key: str, progress_callback=None, byte_callback=None) -> list[Dict[str, Any]]:
-        access_token = _get_access_token(api_key)
         headers = _get_headers(api_key)
         results: list[Dict[str, Any]] = []
         for idx, name in enumerate(keys):

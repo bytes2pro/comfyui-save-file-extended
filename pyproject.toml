@@ -92,6 +92,7 @@ select = [
 ignore = [
     "F403",  # Allow star imports (from module import *)
     "F405",  # Allow star imports (from module import *)
+    'W293',  # Allow blank line contains whitespace
 ]
 
 [tool.ruff.lint.flake8-quotes]

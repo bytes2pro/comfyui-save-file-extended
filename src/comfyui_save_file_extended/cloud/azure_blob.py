@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import base64
+import mimetypes
 from typing import Any, Dict, Tuple
 from urllib.parse import urlparse
 
 from azure.storage.blob import BlobServiceClient, ContentSettings
-import mimetypes
 
 from ._logging import log_exceptions
 
@@ -48,7 +48,7 @@ class Uploader:
             if not account_url:
                 raise ValueError("[SaveFileExtended:azure_blob] Azure Blob requires an account URL or connection string")
             return BlobServiceClient(account_url=account_url, credential=api_key if api_key else None)
-    
+
     @staticmethod
     @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:
