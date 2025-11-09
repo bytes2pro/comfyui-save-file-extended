@@ -87,7 +87,7 @@ class SaveWEBMExtended:
                 return "Cloud: 'cloud_api_key' is required."
         return True
 
-    def save_images(self, images, codec, fps, filename_prefix, crf, custom_filename="", prompt=None, extra_pnginfo=None, save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path=""):
+    def save_images(self, images, codec, fps, filename_prefix, crf, filename="", custom_filename="", prompt=None, extra_pnginfo=None, save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path=""):
         def _notify(kind: str, payload: dict):
             try:
                 PromptServer.instance.send_sync(
@@ -98,7 +98,7 @@ class SaveWEBMExtended:
                 pass
 
         filename_prefix += self.prefix_append
-        full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])
+        full_output_folder, base_filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])
 
         # Resolve local save directory and UI subfolder
         local_save_dir = full_output_folder
@@ -111,11 +111,16 @@ class SaveWEBMExtended:
                 local_save_dir = full_output_folder
             ui_subfolder = os.path.join(subfolder, local_folder_path) if subfolder else local_folder_path
 
-        # Use custom filename if provided, otherwise use default filename generation
-        if custom_filename and custom_filename.strip():
+        # Use filename if provided, otherwise use custom_filename or default UUID generation
+        if filename and filename.strip():
+            name, ext = os.path.splitext(filename.strip())
+            if not ext:
+                ext = ".webm"
+            file = f"{name}{ext}"
+        elif custom_filename and custom_filename.strip():
             file = f"{custom_filename.strip()}.webm"
         else:
-            file = f"{filename}-{uuid4()}.webm"
+            file = f"{base_filename}-{uuid4()}.webm"
         out_path = os.path.join(local_save_dir, file)
 
         _notify("start", {"total": 1, "provider": cloud_provider if save_to_cloud else None})
@@ -203,6 +208,7 @@ class SaveVideoExtended(ComfyNodeABC):
                 "codec": (Types.VideoCodec.as_input(), {"default": "auto", "tooltip": "The codec to use for the video."}),
             },
             "optional": {
+                "filename": ("STRING", {"default": "", "placeholder": "Filename (optional)", "tooltip": "Exact filename to use. If provided, this will be used directly. If empty, uses UUID-based filename generation. Include file extension."}),
                 "custom_filename": ("STRING", {"default": "", "placeholder": "Custom filename (optional)", "tooltip": "Custom filename for saved video. If empty, uses the default filename generation with prefix and UUID. Do not include file extension."}),
                 "save_to_cloud": ("BOOLEAN", {"default": False, "socketless": True, "label_on": "Enabled", "label_off": "Disabled"}),
                 "cloud_provider": ([
@@ -258,7 +264,7 @@ class SaveVideoExtended(ComfyNodeABC):
                 return "Cloud: 'cloud_api_key' is required."
         return True
 
-    def save_video(self, video: Input.Video, filename_prefix, format, codec, custom_filename="", save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
+    def save_video(self, video: Input.Video, filename_prefix, format, codec, filename="", custom_filename="", save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
         def _notify(kind: str, payload: dict):
             try:
                 PromptServer.instance.send_sync(
@@ -269,7 +275,7 @@ class SaveVideoExtended(ComfyNodeABC):
                 pass
         filename_prefix += self.prefix_append
         width, height = video.get_dimensions()
-        full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(
+        full_output_folder, base_filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(
             filename_prefix,
             self.output_dir,
             width,
@@ -297,11 +303,16 @@ class SaveVideoExtended(ComfyNodeABC):
                 metadata["prompt"] = prompt
             if len(metadata) > 0:
                 saved_metadata = metadata
-        # Use custom filename if provided, otherwise use default filename generation
-        if custom_filename and custom_filename.strip():
+        # Use filename if provided, otherwise use custom_filename or default UUID generation
+        if filename and filename.strip():
+            name, ext = os.path.splitext(filename.strip())
+            if not ext:
+                ext = f".{Types.VideoContainer.get_extension(format)}"
+            file = f"{name}{ext}"
+        elif custom_filename and custom_filename.strip():
             file = f"{custom_filename.strip()}.{Types.VideoContainer.get_extension(format)}"
         else:
-            file = f"{filename}-{uuid4()}.{Types.VideoContainer.get_extension(format)}"
+            file = f"{base_filename}-{uuid4()}.{Types.VideoContainer.get_extension(format)}"
         out_path = os.path.join(local_save_dir, file)
 
         _notify("start", {"total": 1, "provider": cloud_provider if save_to_cloud else None})

@@ -65,6 +65,7 @@ class SaveImageExtended:
                 "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "Filename prefix. Supports tokens like %date:yyyy-MM-dd% and node field tokens (e.g. %Empty Latent Image.width%)."})
             },
             "optional": {
+                "filename": ("STRING", {"default": "", "placeholder": "Filename (optional)", "tooltip": "Exact filename to use. If provided, this will be used directly. If empty, uses UUID-based filename generation. Include file extension."}),
                 "custom_filename": ("STRING", {"default": "", "placeholder": "Custom filename (optional)", "tooltip": "Custom filename for saved images. If empty, uses the default filename generation with prefix and UUID. Do not include file extension."}),
                 # Cloud section (acts as a header toggle)
                 "save_to_cloud": ("BOOLEAN", {"default": True, "socketless": True, "label_on": "Enabled", "label_off": "Disabled", "tooltip": "Enable uploading to a cloud provider. Configure provider, destination, and credentials below."}),
@@ -125,6 +126,7 @@ class SaveImageExtended:
     def save_images_extended(self, 
         images, 
         filename_prefix="ComfyUI",
+        filename="",
         custom_filename="",
         save_to_cloud=True,
         cloud_provider="AWS S3",
@@ -161,7 +163,7 @@ class SaveImageExtended:
                 pass
 
         filename_prefix += self.prefix_append
-        full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])
+        full_output_folder, base_filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])
         # Resolve local save directory and UI subfolder
         local_save_dir = full_output_folder
         ui_subfolder = subfolder
@@ -200,14 +202,26 @@ class SaveImageExtended:
                     for x in extra_pnginfo:
                         metadata.add_text(x, json.dumps(extra_pnginfo[x]))
 
-            # Use custom filename if provided, otherwise use default filename generation
-            if custom_filename and custom_filename.strip():
+            # Use filename if provided, otherwise use custom_filename or default UUID generation
+            if filename and filename.strip():
+                if len(images) > 1:
+                    # For batch, append batch number before extension
+                    name, ext = os.path.splitext(filename.strip())
+                    if not ext:
+                        ext = ".png"
+                    file = f"{name}_{batch_number:03d}{ext}"
+                else:
+                    name, ext = os.path.splitext(filename.strip())
+                    if not ext:
+                        ext = ".png"
+                    file = f"{name}{ext}"
+            elif custom_filename and custom_filename.strip():
                 if len(images) > 1:
                     file = f"{custom_filename.strip()}_{batch_number:03d}.png"
                 else:
                     file = f"{custom_filename.strip()}.png"
             else:
-                filename_with_batch_num = filename.replace("%batch_num%", str(batch_number))
+                filename_with_batch_num = base_filename.replace("%batch_num%", str(batch_number))
                 file = f"{filename_with_batch_num}-{uuid4()}.png"
             # Encode to PNG bytes once
             buffer = BytesIO()
