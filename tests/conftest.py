@@ -95,7 +95,7 @@ mock_comfy_types.IO = MagicMock()
 
 # Now import the nodes (after all mocks are set up)
 from src.comfyui_save_file_extended.extended_nodes.save_audio_extended import (
-    SaveAudioExtended, SaveAudioMP3Extended, SaveAudioOpusExtended)
+    SaveAudioExtended)
 from src.comfyui_save_file_extended.extended_nodes.save_image_extended import \
     SaveImageExtended
 from src.comfyui_save_file_extended.extended_nodes.save_video_extended import (
