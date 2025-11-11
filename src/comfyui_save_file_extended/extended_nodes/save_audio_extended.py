@@ -227,8 +227,8 @@ class SaveAudioExtended:
         for (batch_number, waveform) in enumerate(wave_batch):
             fmt = str(format).lower()
             # Use filename if provided, otherwise use custom_filename or default UUID generation
+            # Sanitize filename input to prevent path traversal attacks (custom_filename is not sanitized)
             sanitized_filename = sanitize_filename(filename) if filename else None
-            sanitized_custom_filename = sanitize_filename(custom_filename) if custom_filename else None
             if sanitized_filename:
                 # Use sanitized basename for safe filename handling
                 if total > 1:
@@ -242,11 +242,11 @@ class SaveAudioExtended:
                     if not ext:
                         ext = f".{fmt}"
                     file = f"{name}{ext}"
-            elif sanitized_custom_filename:
+            elif custom_filename and custom_filename.strip():
                 if total > 1:
-                    file = f"{sanitized_custom_filename}_{batch_number:03d}.{fmt}"
+                    file = f"{custom_filename.strip()}_{batch_number:03d}.{fmt}"
                 else:
-                    file = f"{sanitized_custom_filename}.{fmt}"
+                    file = f"{custom_filename.strip()}.{fmt}"
             else:
                 filename_with_batch_num = base_filename.replace("%batch_num%", str(batch_number))
                 file = f"{filename_with_batch_num}-{uuid4()}.{fmt}"

@@ -204,9 +204,8 @@ class SaveImageExtended:
                         metadata.add_text(x, json.dumps(extra_pnginfo[x]))
 
             # Use filename if provided, otherwise use custom_filename or default UUID generation
-            # Sanitize inputs to prevent path traversal attacks
+            # Sanitize filename input to prevent path traversal attacks (custom_filename is not sanitized)
             sanitized_filename = sanitize_filename(filename) if filename else None
-            sanitized_custom_filename = sanitize_filename(custom_filename) if custom_filename else None
 
             if sanitized_filename:
                 # Use sanitized basename for safe filename handling
@@ -221,11 +220,11 @@ class SaveImageExtended:
                     if not ext:
                         ext = ".png"
                     file = f"{name}{ext}"
-            elif sanitized_custom_filename:
+            elif custom_filename and custom_filename.strip():
                 if len(images) > 1:
-                    file = f"{sanitized_custom_filename}_{batch_number:03d}.png"
+                    file = f"{custom_filename.strip()}_{batch_number:03d}.png"
                 else:
-                    file = f"{sanitized_custom_filename}.png"
+                    file = f"{custom_filename.strip()}.png"
             else:
                 filename_with_batch_num = base_filename.replace("%batch_num%", str(batch_number))
                 file = f"{filename_with_batch_num}-{uuid4()}.png"

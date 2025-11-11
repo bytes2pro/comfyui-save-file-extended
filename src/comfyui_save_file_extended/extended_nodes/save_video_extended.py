@@ -113,9 +113,8 @@ class SaveWEBMExtended:
             ui_subfolder = os.path.join(subfolder, local_folder_path) if subfolder else local_folder_path
 
         # Use filename if provided, otherwise use custom_filename or default UUID generation
-        # Sanitize inputs to prevent path traversal attacks
+        # Sanitize filename input to prevent path traversal attacks (custom_filename is not sanitized)
         sanitized_filename = sanitize_filename(filename) if filename else None
-        sanitized_custom_filename = sanitize_filename(custom_filename) if custom_filename else None
 
         if sanitized_filename:
             # Use sanitized basename for safe filename handling
@@ -123,8 +122,8 @@ class SaveWEBMExtended:
             if not ext:
                 ext = ".webm"
             file = f"{name}{ext}"
-        elif sanitized_custom_filename:
-            file = f"{sanitized_custom_filename}.webm"
+        elif custom_filename and custom_filename.strip():
+            file = f"{custom_filename.strip()}.webm"
         else:
             file = f"{base_filename}-{uuid4()}.webm"
         out_path = os.path.join(local_save_dir, file)
@@ -310,9 +309,8 @@ class SaveVideoExtended(ComfyNodeABC):
             if len(metadata) > 0:
                 saved_metadata = metadata
         # Use filename if provided, otherwise use custom_filename or default UUID generation
-        # Sanitize inputs to prevent path traversal attacks
+        # Sanitize filename input to prevent path traversal attacks (custom_filename is not sanitized)
         sanitized_filename = sanitize_filename(filename) if filename else None
-        sanitized_custom_filename = sanitize_filename(custom_filename) if custom_filename else None
         extension = Types.VideoContainer.get_extension(format)
 
         if sanitized_filename:
@@ -321,8 +319,8 @@ class SaveVideoExtended(ComfyNodeABC):
             if not ext:
                 ext = f".{extension}"
             file = f"{name}{ext}"
-        elif sanitized_custom_filename:
-            file = f"{sanitized_custom_filename}.{extension}"
+        elif custom_filename and custom_filename.strip():
+            file = f"{custom_filename.strip()}.{extension}"
         else:
             file = f"{base_filename}-{uuid4()}.{extension}"
         out_path = os.path.join(local_save_dir, file)
