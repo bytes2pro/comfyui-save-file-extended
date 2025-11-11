@@ -15,6 +15,7 @@ from comfy.comfy_types import FileLocator
 from server import PromptServer
 
 from ..cloud import get_uploader
+from ..utils import sanitize_filename
 
 
 class SaveAudioExtended:
@@ -226,23 +227,26 @@ class SaveAudioExtended:
         for (batch_number, waveform) in enumerate(wave_batch):
             fmt = str(format).lower()
             # Use filename if provided, otherwise use custom_filename or default UUID generation
-            if filename and filename.strip():
+            sanitized_filename = sanitize_filename(filename) if filename else None
+            sanitized_custom_filename = sanitize_filename(custom_filename) if custom_filename else None
+            if sanitized_filename:
+                # Use sanitized basename for safe filename handling
                 if total > 1:
                     # For batch, append batch number before extension
-                    name, ext = os.path.splitext(filename.strip())
+                    name, ext = os.path.splitext(sanitized_filename)
                     if not ext:
                         ext = f".{fmt}"
                     file = f"{name}_{batch_number:03d}{ext}"
                 else:
-                    name, ext = os.path.splitext(filename.strip())
+                    name, ext = os.path.splitext(sanitized_filename)
                     if not ext:
                         ext = f".{fmt}"
                     file = f"{name}{ext}"
-            elif custom_filename and custom_filename.strip():
+            elif sanitized_custom_filename:
                 if total > 1:
-                    file = f"{custom_filename.strip()}_{batch_number:03d}.{fmt}"
+                    file = f"{sanitized_custom_filename}_{batch_number:03d}.{fmt}"
                 else:
-                    file = f"{custom_filename.strip()}.{fmt}"
+                    file = f"{sanitized_custom_filename}.{fmt}"
             else:
                 filename_with_batch_num = base_filename.replace("%batch_num%", str(batch_number))
                 file = f"{filename_with_batch_num}-{uuid4()}.{fmt}"
