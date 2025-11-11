@@ -12,6 +12,7 @@ NODE_CLASS_MAPPINGS = {
     "SaveAudioMP3Extended": SaveAudioMP3Extended,
     "SaveAudioOpusExtended": SaveAudioOpusExtended,
     "LoadAudioExtended": LoadAudioExtended,
+    "SaveWorkflowExtended": SaveWorkflowExtended,
 }
 
 # A dictionary that contains the friendly/humanly readable titles for the nodes
@@ -25,4 +26,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SaveAudioMP3Extended": "Save Audio MP3 Extended",
     "SaveAudioOpusExtended": "Save Audio Opus Extended",
     "LoadAudioExtended": "Load Audio Extended",
+    "SaveWorkflowExtended": "Save Workflow Extended",
 }

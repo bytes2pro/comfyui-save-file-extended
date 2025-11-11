@@ -86,11 +86,15 @@ export async function setupProgress(app) {
     const PIN_KEY = "cse:status:panel:pinned";
     const POS_KEY = "cse:status:panel:pos";
     let pinned = false;
-    try { pinned = localStorage.getItem(PIN_KEY) === "1"; } catch {}
+    try {
+        pinned = localStorage.getItem(PIN_KEY) === "1";
+    } catch {}
 
     function setPinned(next) {
         pinned = !!next;
-        try { localStorage.setItem(PIN_KEY, pinned ? "1" : "0"); } catch {}
+        try {
+            localStorage.setItem(PIN_KEY, pinned ? "1" : "0");
+        } catch {}
         const btn = panel.querySelector("button[aria-label='Pin']");
         if (btn) btn.style.color = pinned ? "#ffd66b" : "#bbb";
     }
@@ -267,7 +271,9 @@ export async function setupProgress(app) {
         const provider = d?.provider
             ? ` ${kind === "save" ? "to" : "from"} ${d.provider}`
             : "";
-        const label = `${kind === "save" ? "Saving" : "Loading"} ${resourceLabel}${provider}`;
+        const label = `${
+            kind === "save" ? "Saving" : "Loading"
+        } ${resourceLabel}${provider}`;
         const key = keyFor(kind, d);
         return items.get(key) || createItem(key, label, accent);
     }
@@ -339,9 +345,15 @@ export async function setupProgress(app) {
         } else if (d.phase === "complete") {
             ensureItem("save", d, "audio");
             const parts = [];
-            if (typeof d.count_local === "number") parts.push(`${d.count_local} local`);
-            if (typeof d.count_cloud === "number") parts.push(`${d.count_cloud} cloud`);
-            updateItem(key, 100, `Completed ${parts.join(" and ") || ""}`.trim());
+            if (typeof d.count_local === "number")
+                parts.push(`${d.count_local} local`);
+            if (typeof d.count_cloud === "number")
+                parts.push(`${d.count_cloud} cloud`);
+            updateItem(
+                key,
+                100,
+                `Completed ${parts.join(" and ") || ""}`.trim()
+            );
             completeItem(key, "ok");
         } else if (d.phase === "error") {
             ensureItem("save", d, "audio");
@@ -386,9 +398,15 @@ export async function setupProgress(app) {
         } else if (d.phase === "complete") {
             ensureItem("save", d, "video");
             const parts = [];
-            if (typeof d.count_local === "number") parts.push(`${d.count_local} local`);
-            if (typeof d.count_cloud === "number") parts.push(`${d.count_cloud} cloud`);
-            updateItem(key, 100, `Completed ${parts.join(" and ") || ""}`.trim());
+            if (typeof d.count_local === "number")
+                parts.push(`${d.count_local} local`);
+            if (typeof d.count_cloud === "number")
+                parts.push(`${d.count_cloud} cloud`);
+            updateItem(
+                key,
+                100,
+                `Completed ${parts.join(" and ") || ""}`.trim()
+            );
             completeItem(key, "ok");
         } else if (d.phase === "error") {
             ensureItem("save", d, "video");
@@ -419,6 +437,59 @@ export async function setupProgress(app) {
         }
     });
 
+    // Workflow save events
+    app.api.addEventListener("comfyui.saveworkflowextended.status", (ev) => {
+        const d = ev.detail || {};
+        bumpActivity();
+        const key = keyFor("save", d);
+        if (d.phase === "start") {
+            ensureItem("save", d, "workflows");
+            updateItem(key, 0, detailText("Starting", d));
+        } else if (d.phase === "progress") {
+            ensureItem("save", d, "workflows");
+            updateItem(key, calcPct(d), detailText("Saving", d));
+        } else if (d.phase === "complete") {
+            ensureItem("save", d, "workflows");
+            const parts = [];
+            if (typeof d.count_local === "number")
+                parts.push(`${d.count_local} local`);
+            if (typeof d.count_cloud === "number")
+                parts.push(`${d.count_cloud} cloud`);
+            updateItem(
+                key,
+                100,
+                `Completed ${parts.join(" and ") || ""}`.trim()
+            );
+            completeItem(key, "ok");
+        } else if (d.phase === "error") {
+            ensureItem("save", d, "workflows");
+            updateItem(key, undefined, `Error: ${d.message || "unknown"}`);
+            completeItem(key, "error");
+        }
+    });
+
+    // Workflow load events
+    app.api.addEventListener("comfyui.loadworkflowextended.status", (ev) => {
+        const d = ev.detail || {};
+        bumpActivity();
+        const key = keyFor("load", d);
+        if (d.phase === "start") {
+            ensureItem("load", d, "workflows");
+            updateItem(key, 0, detailText("Starting", d));
+        } else if (d.phase === "progress") {
+            ensureItem("load", d, "workflows");
+            updateItem(key, calcPct(d), detailText("Loading", d));
+        } else if (d.phase === "complete") {
+            ensureItem("load", d, "workflows");
+            updateItem(key, 100, `Completed ${d.count || 0} item(s)`);
+            completeItem(key, "ok");
+        } else if (d.phase === "error") {
+            ensureItem("load", d, "workflows");
+            updateItem(key, undefined, `Error: ${d.message || "unknown"}`);
+            completeItem(key, "error");
+        }
+    });
+
     // If mouse moves over the panel, keep it visible
     panel.addEventListener("mouseenter", () => {
         showPanel();
@@ -442,8 +513,10 @@ export async function setupProgress(app) {
     // Drag to move via header
     const headerEl = panel.firstChild;
     let dragging = false;
-    let startX = 0, startY = 0;
-    let startTop = 0, startLeft = 0;
+    let startX = 0,
+        startY = 0;
+    let startTop = 0,
+        startLeft = 0;
     function savePos() {
         try {
             const rect = panel.getBoundingClientRect();
@@ -482,7 +555,11 @@ export async function setupProgress(app) {
     }
     if (headerEl) {
         headerEl.addEventListener("mousedown", (e) => {
-            if (e.target.getAttribute("aria-label") === "Close" || e.target.getAttribute("aria-label") === "Pin") return;
+            if (
+                e.target.getAttribute("aria-label") === "Close" ||
+                e.target.getAttribute("aria-label") === "Pin"
+            )
+                return;
             dragging = true;
             const rect = panel.getBoundingClientRect();
             startX = e.clientX;
