@@ -80,7 +80,7 @@ class Uploader:
         if region:
             client_kwargs["region_name"] = region
         return boto3.client("s3", **client_kwargs)
-    
+
     @staticmethod
     @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:

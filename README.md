@@ -97,7 +97,54 @@ An example custom node is located in [nodes.py](src/comfyui_save_file_extended/n
 
 ## Tests
 
-This repo contains unit tests written in Pytest in the `tests/` directory. It is recommended to unit test your custom node.
+This repo contains comprehensive unit tests written in Pytest. The tests are organized by node type for better maintainability.
+
+### Test Structure
+
+- **`tests/conftest.py`** - Shared fixtures, mocks, and test setup
+- **`tests/test_save_audio_extended.py`** - Tests for audio nodes (SaveAudioExtended, SaveAudioMP3Extended, SaveAudioOpusExtended)
+- **`tests/test_save_image_extended.py`** - Tests for image nodes (SaveImageExtended)
+- **`tests/test_save_video_extended.py`** - Tests for video nodes (SaveVideoExtended, SaveWEBMExtended)
+
+### Running Tests Locally
+
+1. **Install dev dependencies:**
+   ```bash
+   cd comfyui-save-file-extended
+   pip install -e ".[dev]"
+   ```
+
+2. **Run all tests:**
+   ```bash
+   pytest tests/
+   ```
+
+3. **Run with verbose output:**
+   ```bash
+   pytest tests/ -v
+   ```
+
+4. **Run specific test files:**
+   ```bash
+   pytest tests/test_save_audio_extended.py
+   pytest tests/test_save_image_extended.py
+   pytest tests/test_save_video_extended.py
+   ```
+
+5. **Run with coverage:**
+   ```bash
+   pytest tests/ --cov=src/comfyui_save_file_extended --cov-report=html
+   ```
+
+6. **Run in parallel (faster):**
+   ```bash
+   pip install pytest-xdist
+   pytest tests/ -n auto
+   ```
+
+For more detailed testing instructions, see [tests/README.md](tests/README.md).
+
+### CI/CD
 
 -   [build-pipeline.yml](.github/workflows/build-pipeline.yml) will run pytest and linter on any open PRs
 -   [validate.yml](.github/workflows/validate.yml) will run [node-diff](https://github.com/Comfy-Org/node-diff) to check for breaking changes

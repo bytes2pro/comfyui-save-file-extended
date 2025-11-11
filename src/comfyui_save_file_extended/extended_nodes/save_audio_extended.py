@@ -15,6 +15,7 @@ from comfy.comfy_types import FileLocator
 from server import PromptServer
 
 from ..cloud import get_uploader
+from ..utils import sanitize_filename
 
 
 class SaveAudioExtended:
@@ -40,6 +41,7 @@ class SaveAudioExtended:
                 "format": (["wav", "flac", "mp3", "opus"], {"default": "flac"}),
             },
             "optional": {
+                "filename": ("STRING", {"default": "", "placeholder": "Filename (optional)", "tooltip": "Exact filename to use. If provided, this will be used directly. If empty, uses UUID-based filename generation. Include file extension."}),
                 "custom_filename": ("STRING", {"default": "", "placeholder": "Custom filename (optional)", "tooltip": "Custom filename for saved audio. If empty, uses the default filename generation with prefix and UUID. Do not include file extension."}),
                 # Quality settings (interpretation depends on format)
                 "quality": (["V0", "64k", "96k", "128k", "192k", "320k"], {"default": "128k", "tooltip": "For mp3/opus, selects bitrate or VBR preset. Ignored for wav/flac."}),
@@ -180,7 +182,7 @@ class SaveAudioExtended:
         output_buffer.seek(0)
         return output_buffer.getvalue()
 
-    def save_audio(self, audio, filename_prefix="ComfyUI", format="flac", quality="128k", custom_filename="", save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
+    def save_audio(self, audio, filename_prefix="ComfyUI", format="flac", quality="128k", filename="", custom_filename="", save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
         def _notify(kind: str, payload: dict):
             try:
                 PromptServer.instance.send_sync(
@@ -191,7 +193,7 @@ class SaveAudioExtended:
                 pass
 
         filename_prefix += self.prefix_append
-        full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir)
+        full_output_folder, base_filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir)
 
         # Resolve local save directory
         local_save_dir = full_output_folder
@@ -224,14 +226,29 @@ class SaveAudioExtended:
 
         for (batch_number, waveform) in enumerate(wave_batch):
             fmt = str(format).lower()
-            # Use custom filename if provided, otherwise use default filename generation
-            if custom_filename and custom_filename.strip():
+            # Use filename if provided, otherwise use custom_filename or default UUID generation
+            # Sanitize filename input to prevent path traversal attacks (custom_filename is not sanitized)
+            sanitized_filename = sanitize_filename(filename) if filename else None
+            if sanitized_filename:
+                # Use sanitized basename for safe filename handling
+                if total > 1:
+                    # For batch, append batch number before extension
+                    name, ext = os.path.splitext(sanitized_filename)
+                    if not ext:
+                        ext = f".{fmt}"
+                    file = f"{name}_{batch_number:03d}{ext}"
+                else:
+                    name, ext = os.path.splitext(sanitized_filename)
+                    if not ext:
+                        ext = f".{fmt}"
+                    file = f"{name}{ext}"
+            elif custom_filename and custom_filename.strip():
                 if total > 1:
                     file = f"{custom_filename.strip()}_{batch_number:03d}.{fmt}"
                 else:
                     file = f"{custom_filename.strip()}.{fmt}"
             else:
-                filename_with_batch_num = filename.replace("%batch_num%", str(batch_number))
+                filename_with_batch_num = base_filename.replace("%batch_num%", str(batch_number))
                 file = f"{filename_with_batch_num}-{uuid4()}.{fmt}"
 
             # Encode to bytes once
@@ -251,7 +268,7 @@ class SaveAudioExtended:
                         "subfolder": ui_subfolder,
                         "type": self.type
                     })
-                    _notify("progress", {"where": "local", "current": counter, "total": total, "filename": file})
+                    _notify("progress", {"where": "local", "current": batch_number + 1, "total": total, "filename": file})
                 except Exception as e:
                     _notify("error", {"message": str(e)})
 

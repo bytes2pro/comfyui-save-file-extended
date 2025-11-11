@@ -1,6 +1,6 @@
 ## SaveWEBMExtended
 
-Save an animation from a batch of images as WEBM (VP9 or AV1), locally and/or to a cloud provider. Uses UUID file names and emits real-time progress events compatible with the floating status panel and toasts.
+Save an animation from a batch of images as WEBM (VP9 or AV1), locally and/or to a cloud provider. Supports custom filenames or UUID-based generation. Emits real-time progress events compatible with the floating status panel and toasts.
 
 ### Inputs
 
@@ -9,6 +9,8 @@ Save an animation from a batch of images as WEBM (VP9 or AV1), locally and/or to
 -   **codec (CHOICE)**: `vp9 | av1`.
 -   **fps (FLOAT)**: Frames per second.
 -   **crf (FLOAT)**: Quality factor; higher = smaller (lower quality).
+-   **filename (STRING, optional)**: Exact filename to use. If provided, this will be used directly (extension auto-appended if missing). If empty, falls back to `custom_filename` or UUID-based generation. Include file extension.
+-   **custom_filename (STRING, optional)**: Custom filename prefix (without extension). If provided and `filename` is empty, uses this with `.webm` extension. If both are empty, uses UUID-based filename generation.
 -   **save_to_cloud (BOOLEAN)**: Enable uploads.
 -   **cloud_provider (CHOICE)**: AWS S3, S3-Compatible, GCS, Azure Blob, Backblaze B2, Google Drive, Dropbox, OneDrive, FTP, Supabase, UploadThing.
 -   **bucket_link (STRING)**: Provider destination.
@@ -19,7 +21,8 @@ Save an animation from a batch of images as WEBM (VP9 or AV1), locally and/or to
 
 ### Behavior
 
--   Encodes the frames to `.webm` in the output directory (when local is enabled) using a UUID-based filename.
+-   Encodes the frames to `.webm` in the output directory (when local is enabled).
+-   Filename priority: If `filename` is provided, it's used directly (extension auto-appended if missing). Otherwise, if `custom_filename` is provided, it's used with `.webm` extension. If both are empty, uses UUID-based filename generation.
 -   When cloud is enabled, the saved file is uploaded with byte-level and per-item progress.
 -   Metadata includes prompt and `extra_pnginfo` when enabled in ComfyUI.
 
@@ -36,5 +39,3 @@ Save an animation from a batch of images as WEBM (VP9 or AV1), locally and/or to
 ### Notes
 
 -   Marked EXPERIMENTAL; parameters and behavior may change.
-
-

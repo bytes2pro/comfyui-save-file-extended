@@ -18,6 +18,8 @@ Save images locally and/or upload them to a cloud provider in one batch. Shows r
 
 -   images (IMAGE): Image tensor batch to save.
 -   filename_prefix (STRING): The file prefix; supports tokens like `%date:yyyy-MM-dd%` and node field tokens (e.g. `%Empty Latent Image.width%`).
+-   filename (STRING, optional): Exact filename to use. If provided, this will be used directly (extension auto-appended if missing). For batches, batch numbers are appended before the extension. If empty, falls back to `custom_filename` or UUID-based generation. Include file extension.
+-   custom_filename (STRING, optional): Custom filename prefix (without extension). If provided and `filename` is empty, uses this with `.png` extension. For batches, batch numbers are appended. If both are empty, uses UUID-based filename generation.
 -   save_to_cloud (BOOLEAN): Enable the cloud section and uploads.
 -   cloud_provider (CHOICE): One of AWS S3, S3-Compatible, GCS, Azure Blob, Backblaze B2, Google Drive, Dropbox, OneDrive, FTP, Supabase.
 -   bucket_link (STRING): Provider-specific destination identifier (see examples).

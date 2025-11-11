@@ -8,7 +8,6 @@ import os
 import pathlib
 import re
 import subprocess
-import sys
 
 PATTERN = re.compile(r'^\s*version\s*=\s*["\']([^"\']+)["\']', re.MULTILINE)
 

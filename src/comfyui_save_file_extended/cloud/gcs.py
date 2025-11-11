@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import io
 import json
+import mimetypes
 from typing import Any, Dict, Tuple
 from urllib.parse import urlparse
 
 from google.cloud import storage
 from google.oauth2 import service_account
+
 from ._logging import log_exceptions
-import mimetypes
 
 
 @log_exceptions
@@ -40,7 +41,7 @@ class Uploader:
             return storage.Client(credentials=creds)
         else:
             return storage.Client()
-    
+
     @staticmethod
     @log_exceptions
     def upload(image_bytes: bytes, filename: str, bucket_link: str, cloud_folder_path: str, api_key: str) -> Dict[str, Any]:

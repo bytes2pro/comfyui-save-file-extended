@@ -22,7 +22,6 @@ dependencies = [
     "dropbox>=12.0.2",
     "requests>=2.31.0",
     "supabase>=2.4.0",
-    "uploadthing.py>=0.3.3",
     "av>=14.4.0",
 ]
 
@@ -34,7 +33,13 @@ dev = [
     "mypy",  # linting
     "pre-commit", # runs linting on commit
     "pytest",  # testing
+    "pytest-cov",  # coverage plugin for pytest
     "ruff",  # linting
+    # Test dependencies (also used by nodes, but provided by ComfyUI in production)
+    "torch",  # for creating test data and node functionality
+    "torchaudio",  # for audio node tests
+    "numpy",  # for image/audio processing tests
+    "pillow",  # for image processing tests
 ]
 
 [project.urls]
@@ -88,6 +93,12 @@ select = [
     "W293",
     "F",  # The "F" series in Ruff stands for "Pyflakes" rules, which catch various Python syntax errors and undefined names.
     # See all rules here: https://docs.astral.sh/ruff/rules/#pyflakes-f
+]
+ignore = [
+    "F403",  # Allow star imports (from module import *)
+    "F405",  # Allow star imports (from module import *)
+    'W293',  # Allow blank line contains whitespace
+    "F841",  # Allow unused variable
 ]
 
 [tool.ruff.lint.flake8-quotes]

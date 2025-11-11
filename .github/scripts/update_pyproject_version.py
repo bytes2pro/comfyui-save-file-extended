@@ -7,7 +7,6 @@ from __future__ import annotations
 import os
 import pathlib
 import re
-import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 PYPROJECT_PATH = ROOT / "pyproject.toml"

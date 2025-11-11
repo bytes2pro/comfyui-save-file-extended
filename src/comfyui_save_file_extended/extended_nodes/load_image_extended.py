@@ -288,7 +288,6 @@ class LoadImageExtended:
         file_paths = kwargs.get("file_paths", "")
         cloud_provider = kwargs.get("cloud_provider", "AWS S3")
         bucket_link = kwargs.get("bucket_link", "")
-        cloud_folder_path = kwargs.get("cloud_folder_path", "")  # kept for completeness
         cloud_api_key = kwargs.get("cloud_api_key", "")
         local_file = kwargs.get("local_file", None)
 
