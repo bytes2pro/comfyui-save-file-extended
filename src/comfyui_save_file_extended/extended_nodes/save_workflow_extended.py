@@ -11,7 +11,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "co
 from inspect import cleandoc
 
 import folder_paths
-from comfy.cli_args import args
 from server import PromptServer
 
 from ..cloud import get_uploader
