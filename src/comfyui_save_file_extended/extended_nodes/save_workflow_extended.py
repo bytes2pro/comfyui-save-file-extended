@@ -116,9 +116,12 @@ class SaveWorkflowExtended:
         if save_to_cloud:
             if not (cloud_provider and str(cloud_provider).strip()):
                 return "Cloud: 'cloud_provider' is required."
-            if not (bucket_link and bucket_link.strip()):
+            provider_lower = str(cloud_provider).lower()
+            # UploadThing doesn't require bucket_link (should be left blank)
+            if provider_lower != "uploadthing" and not (bucket_link and bucket_link.strip()):
                 return "Cloud: 'bucket_link' is required."
-            if not (cloud_api_key and cloud_api_key.strip()):
+            # FTP doesn't require cloud_api_key (credentials are in bucket_link URL)
+            if provider_lower != "ftp" and not (cloud_api_key and cloud_api_key.strip()):
                 return "Cloud: 'cloud_api_key' is required."
         return True
 
