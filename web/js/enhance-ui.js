@@ -75,7 +75,8 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
                     nodeName === "SaveImageExtended" ||
                     nodeName === "SaveAudioExtended" ||
                     nodeName === "SaveVideoExtended" ||
-                    nodeName === "SaveWEBMExtended"
+                    nodeName === "SaveWEBMExtended" ||
+                    nodeName === "SaveWorkflowExtended"
                 ) {
                     const saveToCloud = !!get("save_to_cloud")?.value;
                     const saveToLocal = !!get("save_to_local")?.value;
@@ -186,7 +187,8 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
                 nodeName === "SaveImageExtended" ||
                 nodeName === "SaveAudioExtended" ||
                 nodeName === "SaveVideoExtended" ||
-                nodeName === "SaveWEBMExtended"
+                nodeName === "SaveWEBMExtended" ||
+                nodeName === "SaveWorkflowExtended"
             ) {
                 attach("save_to_cloud");
                 attach("save_to_local");
@@ -236,6 +238,15 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
         local: ["local_folder_path"],
     });
     enhance("SaveWEBMExtended", {
+        cloud: [
+            "cloud_provider",
+            "bucket_link",
+            "cloud_folder_path",
+            "cloud_api_key",
+        ],
+        local: ["local_folder_path"],
+    });
+    enhance("SaveWorkflowExtended", {
         cloud: [
             "cloud_provider",
             "bucket_link",
