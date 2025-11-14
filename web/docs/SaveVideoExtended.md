@@ -32,14 +32,22 @@ Save a video locally and/or upload it to a cloud provider in one step. Shows rea
 -   **Azure Blob** → connection string OR `https://account.blob.core.windows.net/container/prefix` | API key: connection string or account key/SAS.
 -   **Backblaze B2** → `b2://bucket/prefix` or `bucket/prefix` | API key: `KEY_ID:APP_KEY`.
 -   **Google Drive** → `/MyFolder/Sub` OR `drive://<folderId>/<sub>` OR a folder URL | API key: OAuth2 JSON or access token.
--   **Dropbox** → `/base/path` | API key: Dropbox access token.
+-   **Dropbox** → bucket_link: `/base/path` | cloud_api_key: JSON `{"app_key":"...","app_secret":"...","authorization_code":"..."}` (You can get the `app_key` and `app_secret` in the bucket settings. You can get authorization_code by going to `https://www.dropbox.com/oauth2/authorize?client_id={APP_KEY}&response_type=code&token_access_type=offline`). Raw access tokens still work but expire after a few hours.
 -   **OneDrive** → `/base/path` | API key: OAuth2 JSON or access token.
 -   **FTP** → `ftp://user:pass@host[:port]/basepath` | API key: not used.
 -   **Supabase Storage** → `<bucket_name>` | API key: `{"url":"https://...","key":"<JWT>"}` or `url|key`.
 -   **UploadThing** → set `bucket_link` to UploadThing project name | API key: `sk_...`.
 
+### Dropbox refresh-token setup
+
+1. Create a Scoped App in the [Dropbox App Console](https://www.dropbox.com/developers/apps) and enable the scopes you need (e.g., `files.content.write` / `files.content.read`).
+2. Enable offline access, then copy the **App key** and **App secret** from the app settings page.
+3. Complete the one-time OAuth flow described in [FranklinThaker/Dropbox-API-Uninterrupted-Access](https://github.com/FranklinThaker/Dropbox-API-Uninterrupted-Access) with `token_access_type=offline`, then either paste the resulting `"authorization_code"` directly into your JSON or exchange it manually for a long-lived **refresh_token**.
+4. On the first successful run with an `authorization_code`, the node requests Dropbox tokens on your behalf, prints the generated refresh/access tokens to the ComfyUI console, and continues the upload. Copy the refresh token into your JSON (optionally alongside `"access_token":"..."`) so subsequent runs no longer rely on the single-use code. The credentials are also cached at `~/.cache/comfyui-save-file-extended/dropbox_tokens.json` (fallback: within the module directory) for reuse when you only provide the app credentials.
+
 ### Token refresh (optional)
 
+-   Dropbox: `{"app_key","app_secret","refresh_token","access_token"?, "authorization_code"?}` (authorization code is optional and only needed for the initial exchange).
 -   Google Drive: `{client_id, client_secret, refresh_token}` (optional `access_token`).
 -   OneDrive: `{client_id, client_secret, refresh_token, tenant, redirect_uri?}`.
 

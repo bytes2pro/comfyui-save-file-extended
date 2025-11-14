@@ -30,7 +30,7 @@ Load images from your local input directory or directly from supported cloud pro
 -   Azure Blob → bucket_link: connection string OR `https://account.blob.core.windows.net/container/prefix`.
 -   Backblaze B2 → bucket_link: `b2://bucket/prefix` or `bucket/prefix`.
 -   Google Drive → bucket_link: `/MyFolder/Sub` OR `drive://<folderId>/<optional/subpath>` OR a folder URL like `https://drive.google.com/drive/folders/<folderId>`.
--   Dropbox → bucket_link: `/base/path`.
+-   Dropbox → bucket_link: `/base/path` | cloud_api_key: JSON `{"app_key":"...","app_secret":"...","authorization_code":"..."}` (You can get the `app_key` and `app_secret` in the bucket settings. You can get authorization_code by going to `https://www.dropbox.com/oauth2/authorize?client_id={APP_KEY}&response_type=code&token_access_type=offline`). Legacy access tokens still work but expire after ~4 hours.
 -   OneDrive → bucket_link: `/base/path`.
 -   FTP → bucket_link: `ftp://user:pass@host[:port]/basepath`.
 -   Supabase → bucket_link: `<bucket_name>`.
@@ -75,8 +75,14 @@ Load images from your local input directory or directly from supported cloud pro
 
 ### Dropbox
 
--   Bucket link: `/base/path`
--   API key: Dropbox access token
+-   Bucket link: `/base/path` (include subfolders as needed, e.g., `/MyApp/Inputs`).
+-   API key: JSON string `{"app_key":"APP_KEY","app_secret":"APP_SECRET","refresh_token":"REFRESH_TOKEN","access_token":"OPTIONAL"}`. For your first run you can supply an `"authorization_code"` instead of `"refresh_token"` and the node will exchange it automatically. Paste the entire JSON into `cloud_api_key`.
+-   Setup steps:
+    1. Create a Scoped App in the [Dropbox App Console](https://www.dropbox.com/developers/apps) with the scopes you need to read files.
+    2. Enable offline access and copy your **App key** and **App secret**.
+    3. Complete the one-time authorization flow described in [FranklinThaker/Dropbox-API-Uninterrupted-Access](https://github.com/FranklinThaker/Dropbox-API-Uninterrupted-Access) using `token_access_type=offline`, then either paste that `"authorization_code"` directly into your JSON or exchange it manually for a long-lived **refresh_token**.
+    4. On the first successful run with an `authorization_code`, the node calls Dropbox's token endpoint, prints the generated refresh/access tokens to the ComfyUI console, and continues the download. Copy the refresh token into your JSON so future runs no longer require the single-use code. The credentials are also cached at `~/.cache/comfyui-save-file-extended/dropbox_tokens.json` (fallback: within the module directory) so later runs can reuse them when only app credentials are provided.
+-   Legacy option: Paste a raw access token. Dropbox now expires them after roughly 4 hours, so plan to renew it frequently if you choose this path.
 
 ### OneDrive
 
@@ -102,6 +108,7 @@ Load images from your local input directory or directly from supported cloud pro
 
 ## Token refresh (optional)
 
+-   Dropbox cloud_api_key JSON: `{"app_key","app_secret","refresh_token","access_token"?, "authorization_code"?}` (authorization code optional; only needed for the initial exchange).
 -   Google Drive cloud_api_key JSON: `{client_id, client_secret, refresh_token}` (optional `access_token`).
 -   OneDrive cloud_api_key JSON: `{client_id, client_secret, refresh_token, tenant='common'|'consumers'|'organizations', redirect_uri?}`.
 

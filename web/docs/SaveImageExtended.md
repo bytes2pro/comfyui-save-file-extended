@@ -36,11 +36,11 @@ Save images locally and/or upload them to a cloud provider in one batch. Shows r
 -   Azure Blob → bucket_link: connection string OR `https://account.blob.core.windows.net/container/prefix` | cloud_api_key: connection string or account key/SAS when using URL.
 -   Backblaze B2 → bucket_link: `b2://bucket/prefix` or `bucket/prefix` | cloud_api_key: `KEY_ID:APP_KEY`.
 -   Google Drive → bucket_link: `/MyFolder/Sub` OR `drive://<folderId>/<optional/subpath>` OR a folder URL like `https://drive.google.com/drive/folders/<folderId>` | cloud_api_key: OAuth2 token or refresh JSON.
--   Dropbox → bucket_link: `/base/path` | cloud_api_key: access token.
+-   Dropbox → bucket_link: `/base/path` | cloud_api_key: JSON `{"app_key":"...","app_secret":"...","authorization_code":"..."}` (You can get the `app_key` and `app_secret` in the bucket settings. You can get authorization_code by going to `https://www.dropbox.com/oauth2/authorize?client_id={APP_KEY}&response_type=code&token_access_type=offline`).
 -   OneDrive → bucket_link: `/base/path` | cloud_api_key: OAuth2 token or refresh JSON.
 -   FTP → bucket_link: `ftp://user:pass@host[:port]/basepath` | cloud_api_key: not used.
 -   Supabase → bucket_link: `<bucket_name>` | cloud_api_key: JSON `{url, key}` or `url|key`.
--.  UploadThing → bucket_link: your project name | cloud_api_key: your UploadThing secret key (`sk_...`). Returns public utfs.io URLs.
+-   UploadThing → bucket*link: your project name | cloud_api_key: your UploadThing secret key (`sk*...`). Returns public utfs.io URLs.
 
 ## Getting provider values (URLs, bucket links, keys)
 
@@ -83,9 +83,14 @@ Save images locally and/or upload them to a cloud provider in one batch. Shows r
 
 ### Dropbox
 
--   Bucket link: `/base/path`
--   API key: Dropbox access token
--   Where to find: Dropbox App Console → Scoped App → Generate access token
+-   Bucket link: `/base/path` (use `/` for root or prepend folders, e.g. `/MyApp/Outputs`)
+-   API key: JSON string like `{"app_key":"APP_KEY","app_secret":"APP_SECRET","refresh_token":"REFRESH_TOKEN","access_token":"OPTIONAL"}`. For the very first run you can supply an `authorization_code` instead of `refresh_token` and the node will exchange it for you.
+-   Where to find / how to create:
+    1. Create a Scoped App at the [Dropbox App Console](https://www.dropbox.com/developers/apps) with the permissions you need (at minimum `files.content.write` and `files.content.read`).
+    2. Under "Settings", ensure "Allow offline access" is enabled, then copy your **App key** and **App secret**.
+    3. Follow the steps from [FranklinThaker/Dropbox-API-Uninterrupted-Access](https://github.com/FranklinThaker/Dropbox-API-Uninterrupted-Access) to authorize once with `token_access_type=offline`, capture the authorization code, and either paste it directly (`"authorization_code":"..."`) **or** exchange it manually for a long-lived **refresh_token**.
+    4. On the first successful run with an `authorization_code`, the node calls Dropbox's token endpoint, prints the generated refresh token (and new access token) to the ComfyUI console, and continues the upload. Copy that refresh token into your JSON so future runs no longer rely on the single-use code. The credentials are also cached at `~/.cache/comfyui-save-file-extended/dropbox_tokens.json` (fallback: within the module directory) so subsequent runs can reuse them when only app credentials are provided.
+-   Legacy option: You can still paste a raw access token, but Dropbox now expires those after ~4 hours, so prefer the refresh-token JSON.
 
 ### OneDrive
 
@@ -128,6 +133,7 @@ using (bucket_id = '<bucket_name>');
 
 ## Token refresh (optional)
 
+-   Dropbox cloud_api_key JSON: `{"app_key","app_secret","refresh_token","access_token"?, "authorization_code"?}` (authorization code is optional and only needed for the initial exchange).
 -   Google Drive cloud_api_key JSON: `{client_id, client_secret, refresh_token}` (optional `access_token`).
 -   OneDrive cloud_api_key JSON: `{client_id, client_secret, refresh_token, tenant='common'|'consumers'|'organizations', redirect_uri?}`.
 
