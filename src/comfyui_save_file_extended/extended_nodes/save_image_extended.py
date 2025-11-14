@@ -19,6 +19,7 @@ from comfy.cli_args import args
 from server import PromptServer
 
 from ..cloud import get_uploader
+from ..utils import sanitize_filename
 
 
 class SaveImageExtended:
@@ -123,8 +124,8 @@ class SaveImageExtended:
                 return "Cloud: 'cloud_api_key' is required."
         return True
 
-    def save_images_extended(self, 
-        images, 
+    def save_images_extended(self,
+        images,
         filename_prefix="ComfyUI",
         filename="",
         custom_filename="",
@@ -135,7 +136,7 @@ class SaveImageExtended:
         cloud_api_key="",
         save_to_local=False,
         local_folder_path="",
-        prompt=None, 
+        prompt=None,
         extra_pnginfo=None
     ):
         def _toast(kind: str, title: str, message: str):
@@ -203,15 +204,19 @@ class SaveImageExtended:
                         metadata.add_text(x, json.dumps(extra_pnginfo[x]))
 
             # Use filename if provided, otherwise use custom_filename or default UUID generation
-            if filename and filename.strip():
+            # Sanitize filename input to prevent path traversal attacks (custom_filename is not sanitized)
+            sanitized_filename = sanitize_filename(filename) if filename else None
+
+            if sanitized_filename:
+                # Use sanitized basename for safe filename handling
                 if len(images) > 1:
                     # For batch, append batch number before extension
-                    name, ext = os.path.splitext(filename.strip())
+                    name, ext = os.path.splitext(sanitized_filename)
                     if not ext:
                         ext = ".png"
                     file = f"{name}_{batch_number:03d}{ext}"
                 else:
-                    name, ext = os.path.splitext(filename.strip())
+                    name, ext = os.path.splitext(sanitized_filename)
                     if not ext:
                         ext = ".png"
                     file = f"{name}{ext}"

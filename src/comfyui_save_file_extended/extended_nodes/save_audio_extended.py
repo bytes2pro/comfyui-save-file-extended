@@ -15,6 +15,7 @@ from comfy.comfy_types import FileLocator
 from server import PromptServer
 
 from ..cloud import get_uploader
+from ..utils import sanitize_filename
 
 
 class SaveAudioExtended:
@@ -226,15 +227,18 @@ class SaveAudioExtended:
         for (batch_number, waveform) in enumerate(wave_batch):
             fmt = str(format).lower()
             # Use filename if provided, otherwise use custom_filename or default UUID generation
-            if filename and filename.strip():
+            # Sanitize filename input to prevent path traversal attacks (custom_filename is not sanitized)
+            sanitized_filename = sanitize_filename(filename) if filename else None
+            if sanitized_filename:
+                # Use sanitized basename for safe filename handling
                 if total > 1:
                     # For batch, append batch number before extension
-                    name, ext = os.path.splitext(filename.strip())
+                    name, ext = os.path.splitext(sanitized_filename)
                     if not ext:
                         ext = f".{fmt}"
                     file = f"{name}_{batch_number:03d}{ext}"
                 else:
-                    name, ext = os.path.splitext(filename.strip())
+                    name, ext = os.path.splitext(sanitized_filename)
                     if not ext:
                         ext = f".{fmt}"
                     file = f"{name}{ext}"

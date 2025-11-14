@@ -15,6 +15,7 @@ from comfy_api.latest import Input, Types
 from server import PromptServer
 
 from ..cloud import get_uploader
+from ..utils import sanitize_filename
 
 
 class SaveWEBMExtended:
@@ -112,8 +113,12 @@ class SaveWEBMExtended:
             ui_subfolder = os.path.join(subfolder, local_folder_path) if subfolder else local_folder_path
 
         # Use filename if provided, otherwise use custom_filename or default UUID generation
-        if filename and filename.strip():
-            name, ext = os.path.splitext(filename.strip())
+        # Sanitize filename input to prevent path traversal attacks (custom_filename is not sanitized)
+        sanitized_filename = sanitize_filename(filename) if filename else None
+
+        if sanitized_filename:
+            # Use sanitized basename for safe filename handling
+            name, ext = os.path.splitext(sanitized_filename)
             if not ext:
                 ext = ".webm"
             file = f"{name}{ext}"
@@ -304,15 +309,20 @@ class SaveVideoExtended(ComfyNodeABC):
             if len(metadata) > 0:
                 saved_metadata = metadata
         # Use filename if provided, otherwise use custom_filename or default UUID generation
-        if filename and filename.strip():
-            name, ext = os.path.splitext(filename.strip())
+        # Sanitize filename input to prevent path traversal attacks (custom_filename is not sanitized)
+        sanitized_filename = sanitize_filename(filename) if filename else None
+        extension = Types.VideoContainer.get_extension(format)
+
+        if sanitized_filename:
+            # Use sanitized basename for safe filename handling
+            name, ext = os.path.splitext(sanitized_filename)
             if not ext:
-                ext = f".{Types.VideoContainer.get_extension(format)}"
+                ext = f".{extension}"
             file = f"{name}{ext}"
         elif custom_filename and custom_filename.strip():
-            file = f"{custom_filename.strip()}.{Types.VideoContainer.get_extension(format)}"
+            file = f"{custom_filename.strip()}.{extension}"
         else:
-            file = f"{base_filename}-{uuid4()}.{Types.VideoContainer.get_extension(format)}"
+            file = f"{base_filename}-{uuid4()}.{extension}"
         out_path = os.path.join(local_save_dir, file)
 
         _notify("start", {"total": 1, "provider": cloud_provider if save_to_cloud else None})
