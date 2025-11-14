@@ -31,14 +31,22 @@ Load a video from the local input directory or from supported cloud providers. S
 -   Azure Blob → connection string OR `https://account.blob.core.windows.net/container/prefix`
 -   Backblaze B2 → `b2://bucket/prefix` or `bucket/prefix`
 -   Google Drive → `/MyFolder/Sub` OR `drive://<folderId>/<sub>` OR a folder URL
--   Dropbox → `/base/path`
+-   Dropbox → bucket_link: `/base/path` | cloud_api_key: JSON `{"app_key":"...","app_secret":"...","authorization_code":"..."}` (You can get the `app_key` and `app_secret` in the bucket settings. You can get authorization_code by going to `https://www.dropbox.com/oauth2/authorize?client_id={APP_KEY}&response_type=code&token_access_type=offline`). Legacy tokens expire after ~4 hours.
 -   OneDrive → `/base/path`
 -   FTP → `ftp://user:pass@host[:port]/basepath`
 -   Supabase Storage → `<bucket_name>`
 -   UploadThing → leave `bucket_link` blank; use file keys or full `utfs.io` URLs
 
+### Dropbox refresh-token setup
+
+1. Create a Scoped App within the [Dropbox App Console](https://www.dropbox.com/developers/apps) and enable the scopes you need for reading video files.
+2. Enable "Allow offline access", then copy your **App key** and **App secret**.
+3. Follow the walkthrough in [FranklinThaker/Dropbox-API-Uninterrupted-Access](https://github.com/FranklinThaker/Dropbox-API-Uninterrupted-Access) using `token_access_type=offline`, then either paste the resulting `"authorization_code"` directly into your JSON or exchange it manually for a long-lived **refresh_token**.
+4. On the first successful run with an `authorization_code`, the node calls Dropbox's token endpoint, prints the generated refresh/access tokens to the ComfyUI console, and continues the download. Copy the refresh token into your JSON (keeping the optional `"access_token"`) so subsequent runs no longer rely on the single-use code. The credentials are also cached at `~/.cache/comfyui-save-file-extended/dropbox_tokens.json` (fallback: within the module directory) for reuse when only app credentials are provided.
+
 ### Token refresh (optional)
 
+-   Dropbox: `{"app_key","app_secret","refresh_token","access_token"?, "authorization_code"?}` (authorization code optional; only needed for the first exchange).
 -   Google Drive: `{client_id, client_secret, refresh_token}` (optional `access_token`).
 -   OneDrive: `{client_id, client_secret, refresh_token, tenant, redirect_uri?}`.
 
