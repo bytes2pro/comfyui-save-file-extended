@@ -225,6 +225,16 @@ class Uploader:
                     )
                 except Exception as exc:
                     print(f"[SaveFileExtended:Dropbox] Refresh token exchange failed: {exc}", flush=True)
+                    raise RuntimeError(
+                        "[SaveFileExtended:dropbox_client] Unable to exchange Dropbox refresh token for a new "
+                        "access token. Verify that app key/secret and refresh token are valid."
+                    ) from exc
+
+            if not creds.get("access_token"):
+                raise RuntimeError(
+                    "[SaveFileExtended:dropbox_client] Dropbox access token is missing after refresh. "
+                    "Token exchange may have failed; please re-authorize your credentials."
+                )
 
             dbx = dropbox.Dropbox(
                 oauth2_access_token=creds.get("access_token"),
