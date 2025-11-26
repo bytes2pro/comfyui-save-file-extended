@@ -40,7 +40,7 @@ class SaveImageExtended:
     - Azure Blob → bucket_link: connection string OR https://account.blob.core.windows.net/container/prefix | cloud_api_key: connection string or account key/SAS when using URL.
     - Backblaze B2 → bucket_link: b2://bucket/prefix or bucket/prefix | cloud_api_key: KEY_ID:APP_KEY.
     - Google Drive → bucket_link: /MyFolder/Sub OR drive://<folderId>/<optional/subpath> | cloud_api_key: OAuth2 access token.
-    - Dropbox → bucket_link: /base/path | cloud_api_key: JSON {"authorization_code","app_key","app_secret"} (optional "refresh_token" for reuse). Legacy long-lived access tokens also work but are not recommended.
+    - Dropbox → bucket_link: /base/path | cloud_api_key: JSON {"app_key","app_secret","authorization_code"}. The refresh token is automatically fetched and cached. Legacy access tokens also work but expire after ~4 hours.
     - OneDrive → bucket_link: /base/path | cloud_api_key: OAuth2 access token.
     - FTP → bucket_link: ftp://user:pass@host[:port]/basepath | cloud_api_key: not used.
     - Supabase → bucket_link: <bucket_name> | cloud_api_key: JSON {url, key} or 'url|key'.
@@ -85,7 +85,7 @@ class SaveImageExtended:
                 ], {"default": "AWS S3", "tooltip": "Select the cloud provider. See Description for exact formats."}),
                 "bucket_link": ("STRING", {"default": "", "placeholder": "Bucket URL / Connection String*", "tooltip": "Destination identifier (varies by provider). Examples: s3://bucket/prefix, gs://bucket, https://account.blob.core.windows.net/container, b2://bucket, drive://folderId, /Dropbox/Path, /OneDrive/Path, ftp://user:pass@host/basepath, or Supabase bucket name. See Description. For UploadThing, leave blank."}),
                 "cloud_folder_path": ("STRING", {"default": "outputs", "placeholder": "Folder path in bucket (e.g. outputs)", "tooltip": "Folder/key prefix under the destination. Created if missing (where applicable)."}),
-                "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key*", "tooltip": "Credentials. Supports tokens and JSON. Dropbox accepts JSON with {app_key, app_secret, refresh_token} (and optional authorization_code for first run) for automatic token refresh. Drive/OneDrive also support refresh_token JSON. For UploadThing, use your secret key (sk_...). See Description."}),
+                "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key*", "tooltip": "Credentials. Supports tokens and JSON. Dropbox accepts JSON with {app_key, app_secret, authorization_code} - refresh token is automatically fetched and cached. Drive/OneDrive support refresh_token JSON. For UploadThing, use your secret key (sk_...). See Description."}),
 
                 # Local section
                 "save_to_local": ("BOOLEAN", {"default": False, "socketless": True, "label_on": "Enabled", "label_off": "Disabled", "tooltip": "Write PNGs to the ComfyUI output directory (in addition to cloud when enabled)."}),

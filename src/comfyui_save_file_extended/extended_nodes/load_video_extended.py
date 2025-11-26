@@ -39,7 +39,7 @@ class LoadVideoExtended(ComfyNodeABC):
                 ], {"default": "AWS S3"}),
                 "bucket_link": ("STRING", {"default": ""}),
                 "cloud_folder_path": ("STRING", {"default": ""}),
-                "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key", "tooltip": "Credentials. Supports tokens and JSON. Dropbox accepts JSON with {app_key, app_secret, authorization_code} for automatic refresh. Drive/OneDrive also support refresh_token JSON. See docs for provider-specific formats."}),
+                "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key", "tooltip": "Credentials. Supports tokens and JSON. Dropbox accepts JSON with {app_key, app_secret, authorization_code} - refresh token is automatically fetched and cached. Drive/OneDrive also support refresh_token JSON. See docs for provider-specific formats."}),
             },
         }
 

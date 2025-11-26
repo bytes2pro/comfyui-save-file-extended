@@ -84,9 +84,9 @@ class Uploader:
                 new_access = token_data.get("access_token")
                 print(
                     "[SaveFileExtended:Dropbox] Generated refresh token from authorization code. "
-                    "Update your cloud_api_key JSON to include:\n"
-                    f'  "refresh_token": "{new_refresh}"\n'
-                    "The authorization code is single-use and can now be removed.",
+                    "The refresh token has been cached automatically. You can remove the authorization_code "
+                    "from your JSON as it's single-use. Future runs will use the cached refresh token.\n"
+                    f'Refresh token (for reference): "{new_refresh}"',
                     flush=True,
                 )
                 result = {
@@ -102,7 +102,8 @@ class Uploader:
                 return {"access_token": access_token}
             raise ValueError(
                 "[SaveFileExtended:dropbox_client:_parse_credentials] When providing JSON, include either "
-                "`refresh_token` + `app_key` + `app_secret` (preferred) or an `access_token`."
+                "`authorization_code` + `app_key` + `app_secret` (preferred, automatically fetches refresh token), "
+                "`refresh_token` + `app_key` + `app_secret`, or an `access_token`."
             )
 
         return {"access_token": key}

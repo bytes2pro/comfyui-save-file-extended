@@ -39,7 +39,7 @@ class SaveWorkflowExtended:
     - Azure Blob → bucket_link: connection string OR https://account.blob.core.windows.net/container/prefix | cloud_api_key: connection string or account key/SAS when using URL.
     - Backblaze B2 → bucket_link: b2://bucket/prefix or bucket/prefix | cloud_api_key: KEY_ID:APP_KEY.
     - Google Drive → bucket_link: /MyFolder/Sub OR drive://<folderId>/<optional/subpath> | cloud_api_key: OAuth2 access token.
-    - Dropbox → bucket_link: /base/path | cloud_api_key: access token.
+    - Dropbox → bucket_link: /base/path | cloud_api_key: JSON {"app_key","app_secret","authorization_code"}. The refresh token is automatically fetched and cached.
     - OneDrive → bucket_link: /base/path | cloud_api_key: OAuth2 access token.
     - FTP → bucket_link: ftp://user:pass@host[:port]/basepath | cloud_api_key: not used.
     - Supabase → bucket_link: <bucket_name> | cloud_api_key: JSON {url, key} or 'url|key'.
