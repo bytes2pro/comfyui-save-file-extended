@@ -97,7 +97,7 @@ class LoadAudioExtended:
                 ], {"default": "AWS S3"}),
                 "bucket_link": ("STRING", {"default": ""}),
                 "cloud_folder_path": ("STRING", {"default": ""}),
-                "cloud_api_key": ("STRING", {"default": ""}),
+                "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key", "tooltip": "Credentials. Supports tokens and JSON. Dropbox accepts JSON with {app_key, app_secret, authorization_code} - refresh token is automatically fetched and cached. Drive/OneDrive also support refresh_token JSON. For UploadThing, use your secret key (sk_...) when providing keys; full URLs don't require it."}),
             },
         }
 

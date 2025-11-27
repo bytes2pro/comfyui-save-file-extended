@@ -62,7 +62,7 @@ class SaveAudioExtended:
                 ], {"default": "AWS S3"}),
                 "bucket_link": ("STRING", {"default": "", "placeholder": "Bucket URL / Conn String"}),
                 "cloud_folder_path": ("STRING", {"default": "outputs"}),
-                "cloud_api_key": ("STRING", {"default": ""}),
+                "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key", "tooltip": "Credentials. Supports tokens and JSON. Dropbox accepts JSON with {app_key, app_secret, authorization_code} - refresh token is automatically fetched and cached. Drive/OneDrive also support refresh_token JSON. For UploadThing, use your secret key (sk_...). See docs for provider-specific formats."}),
                 # Local section
                 "save_to_local": ("BOOLEAN", {"default": True, "socketless": True, "label_on": "Enabled", "label_off": "Disabled"}),
                 "local_folder_path": ("STRING", {"default": ""}),

@@ -29,14 +29,32 @@ Save audio locally and/or upload to a cloud provider. Supports WAV, FLAC, MP3, a
 -   Azure Blob → connection string OR `https://account.blob.core.windows.net/container/prefix` | API key: connection string or account key/SAS.
 -   Backblaze B2 → `b2://bucket/prefix` or `bucket/prefix` | API key: `KEY_ID:APP_KEY`.
 -   Google Drive → `/MyFolder/Sub` OR `drive://<folderId>/<sub>` OR a folder URL | API key: OAuth2 JSON or access token.
--   Dropbox → `/base/path` | API key: Dropbox access token.
+-   Dropbox → bucket_link: `/base/path` | cloud_api_key: JSON `{"app_key":"...","app_secret":"...","authorization_code":"..."}`. Get `app_key` and `app_secret` from app settings. Get authorization_code from `https://www.dropbox.com/oauth2/authorize?client_id={APP_KEY}&response_type=code&token_access_type=offline`.
 -   OneDrive → `/base/path` | API key: OAuth2 JSON or access token.
 -   FTP → `ftp://user:pass@host[:port]/basepath` | API key: not used.
 -   Supabase Storage → `<bucket_name>` | API key: `{"url":"https://...","key":"<JWT>"}` or `url|key`.
--   UploadThing → Project Name  | API key: `sk_...`.
+-   UploadThing → Project Name | API key: `sk_...`.
+
+#### Dropbox setup
+
+1. Create a Scoped App in the [Dropbox App Console](https://www.dropbox.com/developers/apps):
+   - Click "Create app"
+   - Choose "Scoped access" → "Full Dropbox" or "App folder"
+   - Name your app and click "Create app"
+2. Get your **App key** and **App secret**:
+   - In your app's dashboard, go to the **Settings** tab
+   - Scroll to "OAuth 2" section
+   - You'll see **App key** (also called "App ID") - copy this value
+   - Click "Show" next to **App secret** - copy this value
+   - Ensure "Allow offline access" is enabled (this is required for refresh tokens)
+3. Get the authorization code:
+   - Visit `https://www.dropbox.com/oauth2/authorize?client_id={APP_KEY}&response_type=code&token_access_type=offline` (replace `{APP_KEY}` with your app key)
+   - Authorize the app and copy the authorization code from the redirect URL
+4. Paste the JSON with `app_key`, `app_secret`, and `authorization_code` into `cloud_api_key`
 
 ### Token refresh (optional)
 
+-   Dropbox: `{"app_key","app_secret","authorization_code"}`
 -   Google Drive: `{client_id, client_secret, refresh_token}` (optional `access_token`).
 -   OneDrive: `{client_id, client_secret, refresh_token, tenant, redirect_uri?}`.
 
@@ -55,4 +73,3 @@ When ComfyUI metadata is enabled, prompt and `extra_pnginfo` are embedded where 
 
 -   `ui.audio`: UI entries for locally saved files.
 -   `cloud`: Provider upload results.
-
