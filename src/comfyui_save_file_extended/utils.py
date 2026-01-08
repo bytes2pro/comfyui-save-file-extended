@@ -167,3 +167,61 @@ def _convert_java_date_format(java_format: str, dt: datetime) -> str:
 
     return result
 
+
+def process_node_field_tokens(text: str, prompt: dict | None) -> str:
+    """
+    Process node field tokens in text.
+
+    Replaces patterns like %NodeName.fieldname% with the actual field value
+    from the workflow prompt data.
+
+    Args:
+        text: The input text containing node field patterns
+        prompt: The workflow prompt dictionary containing node data.
+                Structure: {node_id: {"class_type": "NodeName", "inputs": {...}}}
+
+    Returns:
+        Text with node field patterns replaced with actual values.
+        Unmatched patterns are left unchanged.
+
+    Examples:
+        >>> prompt = {"1": {"class_type": "Empty Latent Image", "inputs": {"width": 512, "height": 768}}}
+        >>> process_node_field_tokens("%Empty Latent Image.width%", prompt)
+        '512'
+        >>> process_node_field_tokens("size_%Empty Latent Image.width%x%Empty Latent Image.height%", prompt)
+        'size_512x768'
+    """
+    if not text or not prompt or "%" not in text:
+        return text
+
+    # Pattern to match %NodeName.fieldname% where NodeName can contain spaces
+    # but cannot contain % or .
+    # The pattern is: %<anything except % and .>.<anything except %>%
+    pattern = r"%([^%.]+)\.([^%]+)%"
+
+    def replace_token(match: re.Match) -> str:
+        node_name = match.group(1)
+        field_name = match.group(2)
+
+        # Search for a node with matching class_type
+        for node_id, node_data in prompt.items():
+            if not isinstance(node_data, dict):
+                continue
+
+            class_type = node_data.get("class_type", "")
+            if class_type == node_name:
+                inputs = node_data.get("inputs", {})
+                if field_name in inputs:
+                    value = inputs[field_name]
+                    # Convert value to string, handling various types
+                    if isinstance(value, (list, tuple)):
+                        # For list/tuple inputs (like linked connections),
+                        # return the original token as we can't resolve it
+                        return match.group(0)
+                    return str(value)
+
+        # Node or field not found - return original token unchanged
+        return match.group(0)
+
+    return re.sub(pattern, replace_token, text)
+

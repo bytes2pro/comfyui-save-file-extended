@@ -15,7 +15,7 @@ from comfy.comfy_types import FileLocator
 from server import PromptServer
 
 from ..cloud import get_uploader
-from ..utils import process_date_variables, sanitize_filename
+from ..utils import process_date_variables, process_node_field_tokens, sanitize_filename
 
 
 class SaveAudioExtended:
@@ -193,8 +193,9 @@ class SaveAudioExtended:
                 pass
 
         filename_prefix += self.prefix_append
-        # Process custom date variables (e.g., %date:yyyy-MM-dd%)
+        # Process custom date variables (e.g., %date:yyyy-MM-dd%) and node field tokens (e.g., %Empty Latent Image.width%)
         filename_prefix = process_date_variables(filename_prefix)
+        filename_prefix = process_node_field_tokens(filename_prefix, prompt)
         full_output_folder, base_filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir)
 
         # Resolve local save directory
@@ -245,8 +246,9 @@ class SaveAudioExtended:
                         ext = f".{fmt}"
                     file = f"{name}{ext}"
             elif custom_filename and custom_filename.strip():
-                # Process custom date variables in custom_filename
+                # Process custom date variables and node field tokens in custom_filename
                 processed_custom_filename = process_date_variables(custom_filename.strip())
+                processed_custom_filename = process_node_field_tokens(processed_custom_filename, prompt)
                 if total > 1:
                     file = f"{processed_custom_filename}_{batch_number:03d}.{fmt}"
                 else:
