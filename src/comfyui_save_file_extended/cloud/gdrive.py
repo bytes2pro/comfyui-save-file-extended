@@ -22,7 +22,11 @@ def _resolve_parent_id_from_path(api_token: str, path: str, base_parent_id: str 
     parts = [p for p in path.strip("/").split("/") if p]
     for part in parts:
         q = f"name='{part}' and mimeType='application/vnd.google-apps.folder' and '{parent_id}' in parents and trashed=false"
-        search = requests.get("https://www.googleapis.com/drive/v3/files", params={"q": q, "fields": "files(id,name)"}, headers=headers)
+        search = requests.get(
+            "https://www.googleapis.com/drive/v3/files",
+            params={"q": q, "fields": "files(id,name)", "supportsAllDrives": "true", "includeItemsFromAllDrives": "true"},
+            headers=headers
+        )
         search.raise_for_status()
         files = search.json().get("files", [])
         if files:
@@ -30,7 +34,11 @@ def _resolve_parent_id_from_path(api_token: str, path: str, base_parent_id: str 
         else:
             # create folder
             meta = {"name": part, "mimeType": "application/vnd.google-apps.folder", "parents": [parent_id]}
-            created = requests.post("https://www.googleapis.com/drive/v3/files", headers={**headers, "Content-Type": "application/json"}, data=json.dumps(meta))
+            created = requests.post(
+                "https://www.googleapis.com/drive/v3/files?supportsAllDrives=true",
+                headers={**headers, "Content-Type": "application/json"},
+                data=json.dumps(meta)
+            )
             created.raise_for_status()
             parent_id = created.json()["id"]
     return parent_id
@@ -145,7 +153,7 @@ class Uploader:
             'metadata': ('metadata', json.dumps(metadata), 'application/json; charset=UTF-8'),
             'file': ('file', image_bytes, content_type)
         }
-        resp = requests.post('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', headers=headers, files=files)
+        resp = requests.post('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', headers=headers, files=files)
         resp.raise_for_status()
         data = resp.json()
 
@@ -181,7 +189,7 @@ class Uploader:
             if byte_callback and len(body) > 5 * 1024 * 1024:
                 content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
                 init = requests.post(
-                    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
+                    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true',
                     headers={**headers, 'X-Upload-Content-Type': content_type, 'Content-Type': 'application/json; charset=UTF-8'},
                     data=json.dumps({"name": filename, "parents": [parent_id]})
                 )
@@ -210,7 +218,7 @@ class Uploader:
                     'metadata': ('metadata', json.dumps(metadata), 'application/json; charset=UTF-8'),
                     'file': ('file', body, content_type)
                 }
-                resp = requests.post('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', headers=headers, files=files)
+                resp = requests.post('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', headers=headers, files=files)
                 resp.raise_for_status()
                 data = resp.json()
             results.append({"provider": "Google Drive", "bucket": parent_id, "path": f"{path_prefix}/{filename}" if path_prefix else filename, "url": f"https://drive.google.com/file/d/{data.get('id')}/view"})
@@ -236,13 +244,17 @@ class Uploader:
 
         headers = _get_headers(api_key)
         q = f"name='{key_or_filename}' and '{parent_id}' in parents and trashed=false"
-        search = requests.get("https://www.googleapis.com/drive/v3/files", params={"q": q, "fields": "files(id,name)"}, headers=headers)
+        search = requests.get(
+            "https://www.googleapis.com/drive/v3/files",
+            params={"q": q, "fields": "files(id,name)", "supportsAllDrives": "true", "includeItemsFromAllDrives": "true"},
+            headers=headers
+        )
         search.raise_for_status()
         files = search.json().get("files", [])
         if not files:
             raise FileNotFoundError(key_or_filename)
         file_id = files[0]["id"]
-        resp = requests.get(f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media", headers=headers)
+        resp = requests.get(f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media&supportsAllDrives=true", headers=headers)
         resp.raise_for_status()
         return resp.content
 
@@ -261,13 +273,17 @@ class Uploader:
         results: list[Dict[str, Any]] = []
         for idx, name in enumerate(keys):
             q = f"name='{name}' and '{parent_id}' in parents and trashed=false"
-            search = requests.get("https://www.googleapis.com/drive/v3/files", params={"q": q, "fields": "files(id,name)"}, headers=headers)
+            search = requests.get(
+                "https://www.googleapis.com/drive/v3/files",
+                params={"q": q, "fields": "files(id,name)", "supportsAllDrives": "true", "includeItemsFromAllDrives": "true"},
+                headers=headers
+            )
             search.raise_for_status()
             files = search.json().get("files", [])
             if not files:
                 raise FileNotFoundError(name)
             file_id = files[0]["id"]
-            resp = requests.get(f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media", headers=headers, stream=True)
+            resp = requests.get(f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media&supportsAllDrives=true", headers=headers, stream=True)
             resp.raise_for_status()
             if byte_callback:
                 parts = []
