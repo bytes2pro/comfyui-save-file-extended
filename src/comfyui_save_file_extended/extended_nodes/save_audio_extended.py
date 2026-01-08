@@ -15,7 +15,7 @@ from comfy.comfy_types import FileLocator
 from server import PromptServer
 
 from ..cloud import get_uploader
-from ..utils import sanitize_filename
+from ..utils import process_date_variables, sanitize_filename
 
 
 class SaveAudioExtended:
@@ -193,6 +193,8 @@ class SaveAudioExtended:
                 pass
 
         filename_prefix += self.prefix_append
+        # Process custom date variables (e.g., %date:yyyy-MM-dd%)
+        filename_prefix = process_date_variables(filename_prefix)
         full_output_folder, base_filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir)
 
         # Resolve local save directory
@@ -243,10 +245,12 @@ class SaveAudioExtended:
                         ext = f".{fmt}"
                     file = f"{name}{ext}"
             elif custom_filename and custom_filename.strip():
+                # Process custom date variables in custom_filename
+                processed_custom_filename = process_date_variables(custom_filename.strip())
                 if total > 1:
-                    file = f"{custom_filename.strip()}_{batch_number:03d}.{fmt}"
+                    file = f"{processed_custom_filename}_{batch_number:03d}.{fmt}"
                 else:
-                    file = f"{custom_filename.strip()}.{fmt}"
+                    file = f"{processed_custom_filename}.{fmt}"
             else:
                 filename_with_batch_num = base_filename.replace("%batch_num%", str(batch_number))
                 file = f"{filename_with_batch_num}-{uuid4()}.{fmt}"

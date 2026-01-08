@@ -14,7 +14,7 @@ import folder_paths
 from server import PromptServer
 
 from ..cloud import get_uploader
-from ..utils import sanitize_filename
+from ..utils import process_date_variables, sanitize_filename
 
 
 class SaveWorkflowExtended:
@@ -165,6 +165,8 @@ class SaveWorkflowExtended:
                 pass
 
         filename_prefix += self.prefix_append
+        # Process custom date variables (e.g., %date:yyyy-MM-dd%)
+        filename_prefix = process_date_variables(filename_prefix)
 
         # Get save path (using get_save_image_path for consistency, though we're saving JSON)
         full_output_folder, base_filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir)
@@ -211,10 +213,12 @@ class SaveWorkflowExtended:
             else:
                 file = f"{name}{ext}"
         elif custom_filename and custom_filename.strip():
+            # Process custom date variables in custom_filename
+            processed_custom_filename = process_date_variables(custom_filename.strip())
             if append_timestamp:
-                file = f"{custom_filename.strip()}{timestamp_suffix}.json"
+                file = f"{processed_custom_filename}{timestamp_suffix}.json"
             else:
-                file = f"{custom_filename.strip()}.json"
+                file = f"{processed_custom_filename}.json"
         else:
             # Default: always use UUID (unique each time)
             file = f"{base_filename}-{uuid4()}.json"

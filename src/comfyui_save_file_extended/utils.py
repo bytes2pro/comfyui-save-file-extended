@@ -2,6 +2,8 @@
 Utility functions for comfyui-save-file-extended.
 """
 import os
+import re
+from datetime import datetime
 
 
 def sanitize_filename(filename: str) -> str | None:
@@ -57,4 +59,111 @@ def sanitize_filename(filename: str) -> str | None:
         basename = basename[:255]
 
     return basename
+
+
+def process_date_variables(text: str, now: datetime | None = None) -> str:
+    """
+    Process custom date format variables in text.
+
+    Replaces patterns like %date:yyyy-MM-dd% with the actual formatted date.
+    Uses Java-style date format patterns which are converted to Python strftime.
+
+    Args:
+        text: The input text containing date patterns
+        now: Optional datetime to use (defaults to datetime.now())
+
+    Returns:
+        Text with date patterns replaced with formatted dates
+
+    Supported format patterns:
+        - yyyy: 4-digit year (e.g., 2024)
+        - yy: 2-digit year (e.g., 24)
+        - MMMM: Full month name (e.g., January)
+        - MMM: Abbreviated month name (e.g., Jan)
+        - MM: 2-digit month (e.g., 01)
+        - M: Month without leading zero (e.g., 1)
+        - dd: 2-digit day (e.g., 05)
+        - d: Day without leading zero (e.g., 5)
+        - EEEE: Full weekday name (e.g., Monday)
+        - EEE: Abbreviated weekday name (e.g., Mon)
+        - HH: 24-hour hour (e.g., 14)
+        - hh: 12-hour hour (e.g., 02)
+        - mm: Minutes (e.g., 30)
+        - ss: Seconds (e.g., 45)
+        - a: AM/PM marker
+
+    Examples:
+        >>> process_date_variables("%date:yyyy-MM-dd%")  # doctest: +SKIP
+        '2024-01-15'
+        >>> process_date_variables("%date:yyyyMMdd_HHmmss%")  # doctest: +SKIP
+        '20240115_143045'
+        >>> process_date_variables("file_%date:yyyy%_test")  # doctest: +SKIP
+        'file_2024_test'
+    """
+    if not text or "%date:" not in text:
+        return text
+
+    if now is None:
+        now = datetime.now()
+
+    # Pattern to match %date:FORMAT%
+    pattern = r"%date:([^%]+)%"
+
+    def replace_date(match: re.Match) -> str:
+        java_format = match.group(1)
+        return _convert_java_date_format(java_format, now)
+
+    return re.sub(pattern, replace_date, text)
+
+
+def _convert_java_date_format(java_format: str, dt: datetime) -> str:
+    """
+    Convert a Java-style date format string to a formatted date.
+
+    Args:
+        java_format: Java-style date format (e.g., 'yyyy-MM-dd')
+        dt: datetime object to format
+
+    Returns:
+        Formatted date string
+    """
+    # Mapping from Java date patterns to Python strftime (order matters - longer patterns first)
+    # We need to handle patterns carefully to avoid partial replacements
+    replacements = [
+        ("yyyy", dt.strftime("%Y")),
+        ("yy", dt.strftime("%y")),
+        ("MMMM", dt.strftime("%B")),
+        ("MMM", dt.strftime("%b")),
+        ("MM", dt.strftime("%m")),
+        ("M", str(dt.month)),
+        ("dd", dt.strftime("%d")),
+        ("d", str(dt.day)),
+        ("EEEE", dt.strftime("%A")),
+        ("EEE", dt.strftime("%a")),
+        ("HH", dt.strftime("%H")),
+        ("hh", dt.strftime("%I")),
+        ("mm", dt.strftime("%M")),
+        ("ss", dt.strftime("%S")),
+        ("a", dt.strftime("%p")),
+    ]
+
+    result = java_format
+
+    # Use a placeholder approach to prevent double replacement
+    # First pass: replace patterns with unique placeholders
+    placeholders = {}
+    for i, (java_pattern, _) in enumerate(replacements):
+        placeholder = f"\x00{i}\x00"
+        if java_pattern in result:
+            result = result.replace(java_pattern, placeholder, 1)
+            placeholders[placeholder] = replacements[i][1]
+            # Continue replacing remaining occurrences
+            while java_pattern in result:
+                result = result.replace(java_pattern, placeholder, 1)
+
+    # Second pass: replace placeholders with actual values
+    for placeholder, value in placeholders.items():
+        result = result.replace(placeholder, value)
+
+    return result
 

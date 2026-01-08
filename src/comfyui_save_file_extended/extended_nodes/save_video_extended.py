@@ -15,7 +15,7 @@ from comfy_api.latest import Input, Types
 from server import PromptServer
 
 from ..cloud import get_uploader
-from ..utils import sanitize_filename
+from ..utils import process_date_variables, sanitize_filename
 
 
 class SaveWEBMExtended:
@@ -99,6 +99,8 @@ class SaveWEBMExtended:
                 pass
 
         filename_prefix += self.prefix_append
+        # Process custom date variables (e.g., %date:yyyy-MM-dd%)
+        filename_prefix = process_date_variables(filename_prefix)
         full_output_folder, base_filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])
 
         # Resolve local save directory and UI subfolder
@@ -123,7 +125,9 @@ class SaveWEBMExtended:
                 ext = ".webm"
             file = f"{name}{ext}"
         elif custom_filename and custom_filename.strip():
-            file = f"{custom_filename.strip()}.webm"
+            # Process custom date variables in custom_filename
+            processed_custom_filename = process_date_variables(custom_filename.strip())
+            file = f"{processed_custom_filename}.webm"
         else:
             file = f"{base_filename}-{uuid4()}.webm"
         out_path = os.path.join(local_save_dir, file)
@@ -279,6 +283,8 @@ class SaveVideoExtended(ComfyNodeABC):
             except Exception:
                 pass
         filename_prefix += self.prefix_append
+        # Process custom date variables (e.g., %date:yyyy-MM-dd%)
+        filename_prefix = process_date_variables(filename_prefix)
         width, height = video.get_dimensions()
         full_output_folder, base_filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(
             filename_prefix,
@@ -320,7 +326,9 @@ class SaveVideoExtended(ComfyNodeABC):
                 ext = f".{extension}"
             file = f"{name}{ext}"
         elif custom_filename and custom_filename.strip():
-            file = f"{custom_filename.strip()}.{extension}"
+            # Process custom date variables in custom_filename
+            processed_custom_filename = process_date_variables(custom_filename.strip())
+            file = f"{processed_custom_filename}.{extension}"
         else:
             file = f"{base_filename}-{uuid4()}.{extension}"
         out_path = os.path.join(local_save_dir, file)
