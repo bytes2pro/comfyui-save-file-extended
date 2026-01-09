@@ -228,6 +228,8 @@ def process_node_field_tokens(text: str, prompt: dict | None) -> str:
 
 # Environment variable name for cloud API key
 CLOUD_API_KEY_ENV_VAR = "COMFYUI_CLOUD_API_KEY"
+# Environment variable name for bucket link
+BUCKET_LINK_ENV_VAR = "COMFYUI_BUCKET_LINK"
 
 
 def get_cloud_api_key(provided_key: str, provider: str | None = None) -> str:
@@ -270,4 +272,46 @@ def get_cloud_api_key(provided_key: str, provider: str | None = None) -> str:
 
     # Fall back to general env var
     return os.environ.get(CLOUD_API_KEY_ENV_VAR, "")
+
+
+def get_bucket_link(provided_link: str, provider: str | None = None) -> str:
+    """
+    Get the bucket link, with environment variable fallback.
+
+    Priority order:
+    1. Provided link (if non-empty)
+    2. Provider-specific env var: COMFYUI_BUCKET_LINK_{PROVIDER}
+       (e.g., COMFYUI_BUCKET_LINK_AWS_S3, COMFYUI_BUCKET_LINK_GOOGLE_DRIVE)
+    3. General env var: COMFYUI_BUCKET_LINK
+
+    Args:
+        provided_link: The bucket link provided by the user in the node input
+        provider: Optional cloud provider name for provider-specific env var lookup
+
+    Returns:
+        The bucket link to use (may be empty string if none found)
+
+    Examples:
+        >>> import os
+        >>> os.environ["COMFYUI_BUCKET_LINK"] = "s3://my-bucket"
+        >>> get_bucket_link("")  # Returns env var value
+        's3://my-bucket'
+        >>> get_bucket_link("s3://other-bucket")  # User value takes priority
+        's3://other-bucket'
+    """
+    # If user provided a non-empty link, use it
+    if provided_link and provided_link.strip():
+        return provided_link
+
+    # Try provider-specific env var first
+    if provider:
+        # Normalize provider name for env var (e.g., "AWS S3" -> "AWS_S3")
+        provider_normalized = provider.upper().replace(" ", "_").replace("-", "_")
+        provider_env_var = f"COMFYUI_BUCKET_LINK_{provider_normalized}"
+        provider_link = os.environ.get(provider_env_var, "")
+        if provider_link.strip():
+            return provider_link
+
+    # Fall back to general env var
+    return os.environ.get(BUCKET_LINK_ENV_VAR, "")
 
