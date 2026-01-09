@@ -29,7 +29,7 @@ class SaveWEBMExtended:
         return {
             "required": {
                 "images": ("IMAGE", ),
-                "filename_prefix": ("STRING", {"default": "video/ComfyUI"}),
+                "filename_prefix": ("STRING", {"default": "video/%date:yyMMdd_hhmmss%"}),
                 "codec": (["vp9", "av1"], {}),
                 "fps": ("FLOAT", {"default": 24.0, "min": 0.01, "max": 1000.0, "step": 0.01}),
                 "crf": ("FLOAT", {"default": 32.0, "min": 0, "max": 63.0, "step": 1, "tooltip": "Higher crf means lower quality with a smaller file size, lower crf means higher quality higher filesize."}),
@@ -49,7 +49,7 @@ class SaveWEBMExtended:
                     "Supabase Storage",
                     "UploadThing",
                     "S3-Compatible"
-                ], {"default": "AWS S3"}),
+                ], {"default": "Google Drive"}),
                 "bucket_link": ("STRING", {"default": ""}),
                 "cloud_folder_path": ("STRING", {"default": "outputs"}),
                 "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key", "tooltip": "Credentials. Supports tokens and JSON. Dropbox accepts JSON with {app_key, app_secret, authorization_code} - refresh token is automatically fetched and cached. Drive/OneDrive also support refresh_token JSON. For UploadThing, use your secret key (sk_...). See docs for provider-specific formats."}),
@@ -74,7 +74,7 @@ class SaveWEBMExtended:
     def VALIDATE_INPUTS(s, **kwargs):
         save_to_cloud = kwargs.get("save_to_cloud", False)
         save_to_local = kwargs.get("save_to_local", True)
-        cloud_provider = kwargs.get("cloud_provider", "AWS S3")
+        cloud_provider = kwargs.get("cloud_provider", "Google Drive")
         bucket_link = kwargs.get("bucket_link", "")
         cloud_api_key = kwargs.get("cloud_api_key", "")
         if not save_to_cloud and not save_to_local:
@@ -92,7 +92,7 @@ class SaveWEBMExtended:
                 return "Cloud: 'cloud_api_key' is required (or set COMFYUI_CLOUD_API_KEY environment variable)."
         return True
 
-    def save_images(self, images, codec, fps, filename_prefix, crf, filename="", custom_filename="", prompt=None, extra_pnginfo=None, save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path=""):
+    def save_images(self, images, codec, fps, filename_prefix, crf, filename="", custom_filename="", prompt=None, extra_pnginfo=None, save_to_cloud=False, cloud_provider="Google Drive", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path=""):
         def _notify(kind: str, payload: dict):
             try:
                 PromptServer.instance.send_sync(
@@ -221,7 +221,7 @@ class SaveVideoExtended(ComfyNodeABC):
         return {
             "required": {
                 "video": (IO.VIDEO, {"tooltip": "The video to save."}),
-                "filename_prefix": ("STRING", {"default": "video/ComfyUI", "tooltip": "The prefix for the file to save. This may include formatting information such as %date:yyyy-MM-dd% or %Empty Latent Image.width% to include values from nodes."}),
+                "filename_prefix": ("STRING", {"default": "video/%date:yyMMdd_hhmmss%", "tooltip": "The prefix for the file to save. This may include formatting information such as %date:yyyy-MM-dd% or %Empty Latent Image.width% to include values from nodes."}),
                 "format": (Types.VideoContainer.as_input(), {"default": "auto", "tooltip": "The format to save the video as."}),
                 "codec": (Types.VideoCodec.as_input(), {"default": "auto", "tooltip": "The codec to use for the video."}),
             },
@@ -241,7 +241,7 @@ class SaveVideoExtended(ComfyNodeABC):
                     "Supabase Storage",
                     "UploadThing",
                     "S3-Compatible"
-                ], {"default": "AWS S3"}),
+                ], {"default": "Google Drive"}),
                 "bucket_link": ("STRING", {"default": ""}),
                 "cloud_folder_path": ("STRING", {"default": "outputs"}),
                 "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key", "tooltip": "Credentials. Supports tokens and JSON. Dropbox accepts JSON with {app_key, app_secret, authorization_code} - refresh token is automatically fetched and cached. Drive/OneDrive also support refresh_token JSON. For UploadThing, use your secret key (sk_...). See docs for provider-specific formats."}),
@@ -268,7 +268,7 @@ class SaveVideoExtended(ComfyNodeABC):
     def VALIDATE_INPUTS(cls, **kwargs):
         save_to_cloud = kwargs.get("save_to_cloud", False)
         save_to_local = kwargs.get("save_to_local", True)
-        cloud_provider = kwargs.get("cloud_provider", "AWS S3")
+        cloud_provider = kwargs.get("cloud_provider", "Google Drive")
         bucket_link = kwargs.get("bucket_link", "")
         cloud_api_key = kwargs.get("cloud_api_key", "")
         if not save_to_cloud and not save_to_local:
@@ -286,7 +286,7 @@ class SaveVideoExtended(ComfyNodeABC):
                 return "Cloud: 'cloud_api_key' is required (or set COMFYUI_CLOUD_API_KEY environment variable)."
         return True
 
-    def save_video(self, video: Input.Video, filename_prefix, format, codec, filename="", custom_filename="", save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
+    def save_video(self, video: Input.Video, filename_prefix, format, codec, filename="", custom_filename="", save_to_cloud=False, cloud_provider="Google Drive", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
         def _notify(kind: str, payload: dict):
             try:
                 PromptServer.instance.send_sync(

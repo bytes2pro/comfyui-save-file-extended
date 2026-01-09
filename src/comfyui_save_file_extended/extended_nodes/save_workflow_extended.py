@@ -60,7 +60,7 @@ class SaveWorkflowExtended:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "filename_prefix": ("STRING", {"default": "workflows/ComfyUI", "tooltip": "Filename prefix. Supports tokens like %date:yyyy-MM-dd% and node field tokens."})
+                "filename_prefix": ("STRING", {"default": "workflows/%date:yyMMdd_hhmmss%", "tooltip": "Filename prefix. Supports tokens like %date:yyyy-MM-dd% and node field tokens."})
             },
             "optional": {
                 "filename": ("STRING", {"default": "", "placeholder": "Filename (optional)", "tooltip": "Exact filename to use. If provided, this will be used directly. If empty, uses UUID-based filename generation. Include file extension (.json)."}),
@@ -79,7 +79,7 @@ class SaveWorkflowExtended:
                     "Supabase Storage",
                     "UploadThing",
                     "S3-Compatible"
-                ], {"default": "AWS S3", "tooltip": "Select the cloud provider. See Description for exact formats."}),
+                ], {"default": "Google Drive", "tooltip": "Select the cloud provider. See Description for exact formats."}),
                 "bucket_link": ("STRING", {"default": "", "placeholder": "Bucket URL / Connection String*", "tooltip": "Destination identifier (varies by provider). Examples: s3://bucket/prefix, gs://bucket, https://account.blob.core.windows.net/container, b2://bucket, drive://folderId, /Dropbox/Path, /OneDrive/Path, ftp://user:pass@host/basepath, or Supabase bucket name. See Description. For UploadThing, leave blank."}),
                 "cloud_folder_path": ("STRING", {"default": "workflows", "placeholder": "Folder path in bucket (e.g. workflows)", "tooltip": "Folder/key prefix under the destination. Created if missing (where applicable)."}),
                 "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key*", "tooltip": "Credentials. Supports tokens and JSON. For Drive/OneDrive, JSON with refresh_token will auto-refresh the access token. For UploadThing, use your secret key (sk_...). See Description."}),
@@ -108,7 +108,7 @@ class SaveWorkflowExtended:
     def VALIDATE_INPUTS(s, **kwargs):
         save_to_cloud = kwargs.get("save_to_cloud", True)
         save_to_local = kwargs.get("save_to_local", False)
-        cloud_provider = kwargs.get("cloud_provider", "AWS S3")
+        cloud_provider = kwargs.get("cloud_provider", "Google Drive")
         bucket_link = kwargs.get("bucket_link", "")
         cloud_api_key = kwargs.get("cloud_api_key", "")
         if not save_to_cloud and not save_to_local:
@@ -136,7 +136,7 @@ class SaveWorkflowExtended:
         filename="",
         custom_filename="",
         save_to_cloud=True,
-        cloud_provider="AWS S3",
+        cloud_provider="Google Drive",
         bucket_link="",
         cloud_folder_path="workflows",
         cloud_api_key="",
