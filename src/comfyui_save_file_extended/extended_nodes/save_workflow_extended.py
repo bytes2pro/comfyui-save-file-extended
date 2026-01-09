@@ -14,7 +14,7 @@ import folder_paths
 from server import PromptServer
 
 from ..cloud import get_uploader
-from ..utils import process_date_variables, process_node_field_tokens, sanitize_filename
+from ..utils import get_cloud_api_key, process_date_variables, process_node_field_tokens, sanitize_filename
 
 
 class SaveWorkflowExtended:
@@ -121,8 +121,11 @@ class SaveWorkflowExtended:
             if provider_lower != "uploadthing" and not (bucket_link and bucket_link.strip()):
                 return "Cloud: 'bucket_link' is required."
             # FTP doesn't require cloud_api_key (credentials are in bucket_link URL)
-            if provider_lower != "ftp" and not (cloud_api_key and cloud_api_key.strip()):
-                return "Cloud: 'cloud_api_key' is required."
+            if provider_lower != "ftp":
+                # Check for API key in input or environment variable
+                resolved_key = get_cloud_api_key(cloud_api_key, cloud_provider)
+                if not resolved_key.strip():
+                    return "Cloud: 'cloud_api_key' is required (or set COMFYUI_CLOUD_API_KEY environment variable)."
         return True
 
     def save_workflow_extended(self,
@@ -265,6 +268,8 @@ class SaveWorkflowExtended:
                     pass
 
         if save_to_cloud:
+            # Resolve cloud API key (check env var if not provided)
+            resolved_api_key = get_cloud_api_key(cloud_api_key, cloud_provider)
             print(f"Uploading workflow to cloud provider: {cloud_provider}")
             try:
                 Uploader = get_uploader(cloud_provider)
@@ -295,12 +300,12 @@ class SaveWorkflowExtended:
 
                 if hasattr(Uploader, "upload_many"):
                     try:
-                        cloud_results = Uploader.upload_many(cloud_items, bucket_link, cloud_folder_path, cloud_api_key, _progress_cb, _bytes_cb)
+                        cloud_results = Uploader.upload_many(cloud_items, bucket_link, cloud_folder_path, resolved_api_key, _progress_cb, _bytes_cb)
                     except TypeError:
-                        cloud_results = Uploader.upload_many(cloud_items, bucket_link, cloud_folder_path, cloud_api_key, _progress_cb)
+                        cloud_results = Uploader.upload_many(cloud_items, bucket_link, cloud_folder_path, resolved_api_key, _progress_cb)
                 else:
                     # Fallback to single upload if batch not supported
-                    info = Uploader.upload(workflow_json_bytes, file, bucket_link, cloud_folder_path, cloud_api_key)
+                    info = Uploader.upload(workflow_json_bytes, file, bucket_link, cloud_folder_path, resolved_api_key)
                     cloud_results = [info]
                     try:
                         PromptServer.instance.send_sync(

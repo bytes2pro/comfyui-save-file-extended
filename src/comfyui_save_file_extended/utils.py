@@ -225,3 +225,49 @@ def process_node_field_tokens(text: str, prompt: dict | None) -> str:
 
     return re.sub(pattern, replace_token, text)
 
+
+# Environment variable name for cloud API key
+CLOUD_API_KEY_ENV_VAR = "COMFYUI_CLOUD_API_KEY"
+
+
+def get_cloud_api_key(provided_key: str, provider: str | None = None) -> str:
+    """
+    Get the cloud API key, with environment variable fallback.
+
+    Priority order:
+    1. Provided key (if non-empty)
+    2. Provider-specific env var: COMFYUI_CLOUD_API_KEY_{PROVIDER}
+       (e.g., COMFYUI_CLOUD_API_KEY_AWS_S3, COMFYUI_CLOUD_API_KEY_GOOGLE_DRIVE)
+    3. General env var: COMFYUI_CLOUD_API_KEY
+
+    Args:
+        provided_key: The key provided by the user in the node input
+        provider: Optional cloud provider name for provider-specific env var lookup
+
+    Returns:
+        The API key to use (may be empty string if none found)
+
+    Examples:
+        >>> import os
+        >>> os.environ["COMFYUI_CLOUD_API_KEY"] = "env_key"
+        >>> get_cloud_api_key("")  # Returns env var value
+        'env_key'
+        >>> get_cloud_api_key("user_key")  # User key takes priority
+        'user_key'
+    """
+    # If user provided a non-empty key, use it
+    if provided_key and provided_key.strip():
+        return provided_key
+
+    # Try provider-specific env var first
+    if provider:
+        # Normalize provider name for env var (e.g., "AWS S3" -> "AWS_S3")
+        provider_normalized = provider.upper().replace(" ", "_").replace("-", "_")
+        provider_env_var = f"COMFYUI_CLOUD_API_KEY_{provider_normalized}"
+        provider_key = os.environ.get(provider_env_var, "")
+        if provider_key.strip():
+            return provider_key
+
+    # Fall back to general env var
+    return os.environ.get(CLOUD_API_KEY_ENV_VAR, "")
+

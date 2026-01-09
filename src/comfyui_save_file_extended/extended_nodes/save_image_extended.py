@@ -19,7 +19,7 @@ from comfy.cli_args import args
 from server import PromptServer
 
 from ..cloud import get_uploader
-from ..utils import process_date_variables, process_node_field_tokens, sanitize_filename
+from ..utils import get_cloud_api_key, process_date_variables, process_node_field_tokens, sanitize_filename
 
 
 class SaveImageExtended:
@@ -120,8 +120,10 @@ class SaveImageExtended:
                 return "Cloud: 'cloud_provider' is required."
             if not (bucket_link and bucket_link.strip()):
                 return "Cloud: 'bucket_link' is required."
-            if not (cloud_api_key and cloud_api_key.strip()):
-                return "Cloud: 'cloud_api_key' is required."
+            # Check for API key in input or environment variable
+            resolved_key = get_cloud_api_key(cloud_api_key, cloud_provider)
+            if not resolved_key.strip():
+                return "Cloud: 'cloud_api_key' is required (or set COMFYUI_CLOUD_API_KEY environment variable)."
         return True
 
     def save_images_extended(self,
@@ -272,6 +274,8 @@ class SaveImageExtended:
             counter += 1
 
         if save_to_cloud and cloud_items:
+            # Resolve cloud API key (check env var if not provided)
+            resolved_api_key = get_cloud_api_key(cloud_api_key, cloud_provider)
             try:
                 Uploader = get_uploader(cloud_provider)
                 total_bytes = sum(len(it["content"]) for it in cloud_items)
@@ -296,14 +300,14 @@ class SaveImageExtended:
                         except Exception:
                             pass
                     try:
-                        cloud_results = Uploader.upload_many(cloud_items, bucket_link, cloud_folder_path, cloud_api_key, _progress_cb, _bytes_cb)
+                        cloud_results = Uploader.upload_many(cloud_items, bucket_link, cloud_folder_path, resolved_api_key, _progress_cb, _bytes_cb)
                     except TypeError:
-                        cloud_results = Uploader.upload_many(cloud_items, bucket_link, cloud_folder_path, cloud_api_key, _progress_cb)
+                        cloud_results = Uploader.upload_many(cloud_items, bucket_link, cloud_folder_path, resolved_api_key, _progress_cb)
                 else:
                     # Fallback to single uploads if batch not supported
                     sent = 0
                     for item in cloud_items:
-                        info = Uploader.upload(item["content"], item["filename"], bucket_link, cloud_folder_path, cloud_api_key)
+                        info = Uploader.upload(item["content"], item["filename"], bucket_link, cloud_folder_path, resolved_api_key)
                         cloud_results.append(info)
                         sent += 1
                         try:

@@ -15,7 +15,7 @@ from comfy_api.latest import Input, Types
 from server import PromptServer
 
 from ..cloud import get_uploader
-from ..utils import process_date_variables, process_node_field_tokens, sanitize_filename
+from ..utils import get_cloud_api_key, process_date_variables, process_node_field_tokens, sanitize_filename
 
 
 class SaveWEBMExtended:
@@ -84,8 +84,10 @@ class SaveWEBMExtended:
                 return "Cloud: 'cloud_provider' is required."
             if not (bucket_link and bucket_link.strip()):
                 return "Cloud: 'bucket_link' is required."
-            if not (cloud_api_key and cloud_api_key.strip()):
-                return "Cloud: 'cloud_api_key' is required."
+            # Check for API key in input or environment variable
+            resolved_key = get_cloud_api_key(cloud_api_key, cloud_provider)
+            if not resolved_key.strip():
+                return "Cloud: 'cloud_api_key' is required (or set COMFYUI_CLOUD_API_KEY environment variable)."
         return True
 
     def save_images(self, images, codec, fps, filename_prefix, crf, filename="", custom_filename="", prompt=None, extra_pnginfo=None, save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path=""):
@@ -171,6 +173,8 @@ class SaveWEBMExtended:
         filenames.append(file)
 
         if save_to_cloud:
+            # Resolve cloud API key (check env var if not provided)
+            resolved_api_key = get_cloud_api_key(cloud_api_key, cloud_provider)
             try:
                 with open(out_path, "rb") as f:
                     data = f.read()
@@ -183,9 +187,9 @@ class SaveWEBMExtended:
                 def _progress_cb(info: dict):
                     _notify("progress", {"where": "cloud", "current": (info.get("index", 0) + 1), "total": 1, "filename": info.get("path"), "provider": cloud_provider})
                 try:
-                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], bucket_link, cloud_folder_path, cloud_api_key, _progress_cb, _bytes_cb)
+                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], bucket_link, cloud_folder_path, resolved_api_key, _progress_cb, _bytes_cb)
                 except TypeError:
-                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], bucket_link, cloud_folder_path, cloud_api_key, _progress_cb)
+                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], bucket_link, cloud_folder_path, resolved_api_key, _progress_cb)
             except Exception as e:
                 _notify("error", {"message": str(e)})
             else:
@@ -271,8 +275,10 @@ class SaveVideoExtended(ComfyNodeABC):
                 return "Cloud: 'cloud_provider' is required."
             if not (bucket_link and bucket_link.strip()):
                 return "Cloud: 'bucket_link' is required."
-            if not (cloud_api_key and cloud_api_key.strip()):
-                return "Cloud: 'cloud_api_key' is required."
+            # Check for API key in input or environment variable
+            resolved_key = get_cloud_api_key(cloud_api_key, cloud_provider)
+            if not resolved_key.strip():
+                return "Cloud: 'cloud_api_key' is required (or set COMFYUI_CLOUD_API_KEY environment variable)."
         return True
 
     def save_video(self, video: Input.Video, filename_prefix, format, codec, filename="", custom_filename="", save_to_cloud=False, cloud_provider="AWS S3", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
@@ -357,6 +363,8 @@ class SaveVideoExtended(ComfyNodeABC):
         filenames.append(file)
 
         if save_to_cloud:
+            # Resolve cloud API key (check env var if not provided)
+            resolved_api_key = get_cloud_api_key(cloud_api_key, cloud_provider)
             try:
                 with open(out_path, "rb") as f:
                     data = f.read()
@@ -369,9 +377,9 @@ class SaveVideoExtended(ComfyNodeABC):
                 def _progress_cb(info: dict):
                     _notify("progress", {"where": "cloud", "current": (info.get("index", 0) + 1), "total": 1, "filename": info.get("path"), "provider": cloud_provider})
                 try:
-                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], bucket_link, cloud_folder_path, cloud_api_key, _progress_cb, _bytes_cb)
+                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], bucket_link, cloud_folder_path, resolved_api_key, _progress_cb, _bytes_cb)
                 except TypeError:
-                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], bucket_link, cloud_folder_path, cloud_api_key, _progress_cb)
+                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], bucket_link, cloud_folder_path, resolved_api_key, _progress_cb)
             except Exception as e:
                 _notify("error", {"message": str(e)})
             else:
