@@ -84,7 +84,7 @@ class SaveImageExtended:
                     "S3-Compatible"
                 ], {"default": "Google Drive", "tooltip": "Select the cloud provider. See Description for exact formats."}),
                 "bucket_link": ("STRING", {"default": "", "placeholder": "Bucket URL / Connection String*", "tooltip": "Destination identifier (varies by provider). Examples: s3://bucket/prefix, gs://bucket, https://account.blob.core.windows.net/container, b2://bucket, drive://folderId, /Dropbox/Path, /OneDrive/Path, ftp://user:pass@host/basepath, or Supabase bucket name. See Description. For UploadThing, leave blank."}),
-                "cloud_folder_path": ("STRING", {"default": "outputs", "placeholder": "Folder path in bucket (e.g. outputs)", "tooltip": "Folder/key prefix under the destination. Created if missing (where applicable)."}),
+                "cloud_folder_path": ("STRING", {"default": "%date:yyMMdd%", "placeholder": "Folder path in bucket (e.g. outputs)", "tooltip": "Folder/key prefix under the destination. Supports date tokens like %date:yyMMdd%. Created if missing (where applicable)."}),
                 "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key*", "tooltip": "Credentials. Supports tokens and JSON. Dropbox accepts JSON with {app_key, app_secret, authorization_code} - refresh token is automatically fetched and cached. Drive/OneDrive support refresh_token JSON. For UploadThing, use your secret key (sk_...). See Description."}),
 
                 # Local section
@@ -136,7 +136,7 @@ class SaveImageExtended:
         save_to_cloud=True,
         cloud_provider="Google Drive",
         bucket_link="",
-        cloud_folder_path="outputs",
+        cloud_folder_path="%date:yyMMdd%",
         cloud_api_key="",
         save_to_local=False,
         local_folder_path="",
@@ -279,6 +279,8 @@ class SaveImageExtended:
             # Resolve bucket link and cloud API key (check env vars if not provided)
             resolved_bucket_link = get_bucket_link(bucket_link, cloud_provider)
             resolved_api_key = get_cloud_api_key(cloud_api_key, cloud_provider)
+            # Process date variables in cloud_folder_path
+            processed_cloud_folder_path = process_date_variables(cloud_folder_path)
             try:
                 Uploader = get_uploader(cloud_provider)
                 total_bytes = sum(len(it["content"]) for it in cloud_items)
@@ -303,14 +305,14 @@ class SaveImageExtended:
                         except Exception:
                             pass
                     try:
-                        cloud_results = Uploader.upload_many(cloud_items, resolved_bucket_link, cloud_folder_path, resolved_api_key, _progress_cb, _bytes_cb)
+                        cloud_results = Uploader.upload_many(cloud_items, resolved_bucket_link, processed_cloud_folder_path, resolved_api_key, _progress_cb, _bytes_cb)
                     except TypeError:
-                        cloud_results = Uploader.upload_many(cloud_items, resolved_bucket_link, cloud_folder_path, resolved_api_key, _progress_cb)
+                        cloud_results = Uploader.upload_many(cloud_items, resolved_bucket_link, processed_cloud_folder_path, resolved_api_key, _progress_cb)
                 else:
                     # Fallback to single uploads if batch not supported
                     sent = 0
                     for item in cloud_items:
-                        info = Uploader.upload(item["content"], item["filename"], resolved_bucket_link, cloud_folder_path, resolved_api_key)
+                        info = Uploader.upload(item["content"], item["filename"], resolved_bucket_link, processed_cloud_folder_path, resolved_api_key)
                         cloud_results.append(info)
                         sent += 1
                         try:

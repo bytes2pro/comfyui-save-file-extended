@@ -51,7 +51,7 @@ class SaveWEBMExtended:
                     "S3-Compatible"
                 ], {"default": "Google Drive"}),
                 "bucket_link": ("STRING", {"default": ""}),
-                "cloud_folder_path": ("STRING", {"default": "outputs"}),
+                "cloud_folder_path": ("STRING", {"default": "%date:yyMMdd%", "tooltip": "Folder/key prefix under the destination. Supports date tokens like %date:yyMMdd%."}),
                 "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key", "tooltip": "Credentials. Supports tokens and JSON. Dropbox accepts JSON with {app_key, app_secret, authorization_code} - refresh token is automatically fetched and cached. Drive/OneDrive also support refresh_token JSON. For UploadThing, use your secret key (sk_...). See docs for provider-specific formats."}),
                 "save_to_local": ("BOOLEAN", {"default": True, "socketless": True, "label_on": "Enabled", "label_off": "Disabled"}),
                 "local_folder_path": ("STRING", {"default": ""}),
@@ -92,7 +92,7 @@ class SaveWEBMExtended:
                 return "Cloud: 'cloud_api_key' is required (or set COMFYUI_CLOUD_API_KEY environment variable)."
         return True
 
-    def save_images(self, images, codec, fps, filename_prefix, crf, filename="", custom_filename="", prompt=None, extra_pnginfo=None, save_to_cloud=False, cloud_provider="Google Drive", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path=""):
+    def save_images(self, images, codec, fps, filename_prefix, crf, filename="", custom_filename="", prompt=None, extra_pnginfo=None, save_to_cloud=False, cloud_provider="Google Drive", bucket_link="", cloud_folder_path="%date:yyMMdd%", cloud_api_key="", save_to_local=True, local_folder_path=""):
         def _notify(kind: str, payload: dict):
             try:
                 PromptServer.instance.send_sync(
@@ -178,6 +178,8 @@ class SaveWEBMExtended:
             # Resolve bucket link and cloud API key (check env vars if not provided)
             resolved_bucket_link = get_bucket_link(bucket_link, cloud_provider)
             resolved_api_key = get_cloud_api_key(cloud_api_key, cloud_provider)
+            # Process date variables in cloud_folder_path
+            processed_cloud_folder_path = process_date_variables(cloud_folder_path)
             try:
                 with open(out_path, "rb") as f:
                     data = f.read()
@@ -190,9 +192,9 @@ class SaveWEBMExtended:
                 def _progress_cb(info: dict):
                     _notify("progress", {"where": "cloud", "current": (info.get("index", 0) + 1), "total": 1, "filename": info.get("path"), "provider": cloud_provider})
                 try:
-                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], resolved_bucket_link, cloud_folder_path, resolved_api_key, _progress_cb, _bytes_cb)
+                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], resolved_bucket_link, processed_cloud_folder_path, resolved_api_key, _progress_cb, _bytes_cb)
                 except TypeError:
-                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], resolved_bucket_link, cloud_folder_path, resolved_api_key, _progress_cb)
+                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], resolved_bucket_link, processed_cloud_folder_path, resolved_api_key, _progress_cb)
             except Exception as e:
                 _notify("error", {"message": str(e)})
             else:
@@ -243,7 +245,7 @@ class SaveVideoExtended(ComfyNodeABC):
                     "S3-Compatible"
                 ], {"default": "Google Drive"}),
                 "bucket_link": ("STRING", {"default": ""}),
-                "cloud_folder_path": ("STRING", {"default": "outputs"}),
+                "cloud_folder_path": ("STRING", {"default": "%date:yyMMdd%", "tooltip": "Folder/key prefix under the destination. Supports date tokens like %date:yyMMdd%."}),
                 "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key", "tooltip": "Credentials. Supports tokens and JSON. Dropbox accepts JSON with {app_key, app_secret, authorization_code} - refresh token is automatically fetched and cached. Drive/OneDrive also support refresh_token JSON. For UploadThing, use your secret key (sk_...). See docs for provider-specific formats."}),
                 "save_to_local": ("BOOLEAN", {"default": True, "socketless": True, "label_on": "Enabled", "label_off": "Disabled"}),
                 "local_folder_path": ("STRING", {"default": ""}),
@@ -286,7 +288,7 @@ class SaveVideoExtended(ComfyNodeABC):
                 return "Cloud: 'cloud_api_key' is required (or set COMFYUI_CLOUD_API_KEY environment variable)."
         return True
 
-    def save_video(self, video: Input.Video, filename_prefix, format, codec, filename="", custom_filename="", save_to_cloud=False, cloud_provider="Google Drive", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
+    def save_video(self, video: Input.Video, filename_prefix, format, codec, filename="", custom_filename="", save_to_cloud=False, cloud_provider="Google Drive", bucket_link="", cloud_folder_path="%date:yyMMdd%", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
         def _notify(kind: str, payload: dict):
             try:
                 PromptServer.instance.send_sync(
@@ -371,6 +373,8 @@ class SaveVideoExtended(ComfyNodeABC):
             # Resolve bucket link and cloud API key (check env vars if not provided)
             resolved_bucket_link = get_bucket_link(bucket_link, cloud_provider)
             resolved_api_key = get_cloud_api_key(cloud_api_key, cloud_provider)
+            # Process date variables in cloud_folder_path
+            processed_cloud_folder_path = process_date_variables(cloud_folder_path)
             try:
                 with open(out_path, "rb") as f:
                     data = f.read()
@@ -383,9 +387,9 @@ class SaveVideoExtended(ComfyNodeABC):
                 def _progress_cb(info: dict):
                     _notify("progress", {"where": "cloud", "current": (info.get("index", 0) + 1), "total": 1, "filename": info.get("path"), "provider": cloud_provider})
                 try:
-                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], resolved_bucket_link, cloud_folder_path, resolved_api_key, _progress_cb, _bytes_cb)
+                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], resolved_bucket_link, processed_cloud_folder_path, resolved_api_key, _progress_cb, _bytes_cb)
                 except TypeError:
-                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], resolved_bucket_link, cloud_folder_path, resolved_api_key, _progress_cb)
+                    cloud_results = Uploader.upload_many([{"filename": file, "content": data}], resolved_bucket_link, processed_cloud_folder_path, resolved_api_key, _progress_cb)
             except Exception as e:
                 _notify("error", {"message": str(e)})
             else:

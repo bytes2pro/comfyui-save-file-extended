@@ -61,7 +61,7 @@ class SaveAudioExtended:
                     "S3-Compatible"
                 ], {"default": "Google Drive"}),
                 "bucket_link": ("STRING", {"default": "", "placeholder": "Bucket URL / Conn String"}),
-                "cloud_folder_path": ("STRING", {"default": "outputs"}),
+                "cloud_folder_path": ("STRING", {"default": "%date:yyMMdd%", "tooltip": "Folder/key prefix under the destination. Supports date tokens like %date:yyMMdd%."}),
                 "cloud_api_key": ("STRING", {"default": "", "placeholder": "Auth / API key", "tooltip": "Credentials. Supports tokens and JSON. Dropbox accepts JSON with {app_key, app_secret, authorization_code} - refresh token is automatically fetched and cached. Drive/OneDrive also support refresh_token JSON. For UploadThing, use your secret key (sk_...). See docs for provider-specific formats."}),
                 # Local section
                 "save_to_local": ("BOOLEAN", {"default": True, "socketless": True, "label_on": "Enabled", "label_off": "Disabled"}),
@@ -186,7 +186,7 @@ class SaveAudioExtended:
         output_buffer.seek(0)
         return output_buffer.getvalue()
 
-    def save_audio(self, audio, filename_prefix="ComfyUI", format="flac", quality="128k", filename="", custom_filename="", save_to_cloud=False, cloud_provider="Google Drive", bucket_link="", cloud_folder_path="outputs", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
+    def save_audio(self, audio, filename_prefix="ComfyUI", format="flac", quality="128k", filename="", custom_filename="", save_to_cloud=False, cloud_provider="Google Drive", bucket_link="", cloud_folder_path="%date:yyMMdd%", cloud_api_key="", save_to_local=True, local_folder_path="", prompt=None, extra_pnginfo=None):
         def _notify(kind: str, payload: dict):
             try:
                 PromptServer.instance.send_sync(
@@ -291,6 +291,8 @@ class SaveAudioExtended:
             # Resolve bucket link and cloud API key (check env vars if not provided)
             resolved_bucket_link = get_bucket_link(bucket_link, cloud_provider)
             resolved_api_key = get_cloud_api_key(cloud_api_key, cloud_provider)
+            # Process date variables in cloud_folder_path
+            processed_cloud_folder_path = process_date_variables(cloud_folder_path)
             try:
                 Uploader = get_uploader(cloud_provider)
                 sent_bytes = {"n": 0}
@@ -301,9 +303,9 @@ class SaveAudioExtended:
                 def _progress_cb(info: dict):
                     _notify("progress", {"where": "cloud", "current": (info.get("index", 0) + 1), "total": len(cloud_items), "filename": info.get("path"), "provider": cloud_provider})
                 try:
-                    cloud_results = Uploader.upload_many(cloud_items, resolved_bucket_link, cloud_folder_path, resolved_api_key, _progress_cb, _bytes_cb)
+                    cloud_results = Uploader.upload_many(cloud_items, resolved_bucket_link, processed_cloud_folder_path, resolved_api_key, _progress_cb, _bytes_cb)
                 except TypeError:
-                    cloud_results = Uploader.upload_many(cloud_items, resolved_bucket_link, cloud_folder_path, resolved_api_key, _progress_cb)
+                    cloud_results = Uploader.upload_many(cloud_items, resolved_bucket_link, processed_cloud_folder_path, resolved_api_key, _progress_cb)
             except Exception as e:
                 _notify("error", {"message": str(e)})
             else:
