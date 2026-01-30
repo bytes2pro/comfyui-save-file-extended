@@ -4,6 +4,15 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
         const orig = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
             orig?.apply(this, arguments);
+
+            // Remove any stale header widgets carried over from a clone
+            if (this.widgets) {
+                this.widgets = this.widgets.filter((w) => !w.__cse_header);
+            }
+
+            // Always create fresh UI state (never reuse from clone)
+            this._cse_ui = { widgets: {} };
+
             const get = (name) =>
                 (this.widgets || []).find((w) => w.name === name);
             const setHidden = (names, hidden) => {
@@ -14,7 +23,6 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
             };
             const indexOf = (name) =>
                 (this.widgets || []).findIndex((w) => w.name === name);
-            this._cse_ui = this._cse_ui || { widgets: {} };
 
             const persistKey = (section) =>
                 `${nodeName}:cse:${section}:collapsed`;
