@@ -54,6 +54,10 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
                         }
                     );
                     // Do not serialize client-only header
+                    // Must set in options so LiteGraph's serialize/configure
+                    // actually skips this widget in widgets_values.
+                    header.options = header.options || {};
+                    header.options.serialize = false;
                     header.serialize = false;
                     header.__cse_header = true;
                     ui.widgets[section] = header;
@@ -208,12 +212,58 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
                 attach("load_from_cloud");
             }
 
+            // Safety net: actively strip header entries from serialised
+            // widgets_values so stale saves can never include them.
+            const origOnSerialize = this.onSerialize;
+            this.onSerialize = function (o) {
+                origOnSerialize?.apply(this, arguments);
+                if (o.widgets_values && this.widgets) {
+                    // Rebuild widgets_values excluding header widgets
+                    const clean = [];
+                    let vi = 0;
+                    for (const w of this.widgets) {
+                        if (vi >= o.widgets_values.length) break;
+                        if (w.__cse_header) {
+                            vi++; // skip this entry
+                            continue;
+                        }
+                        clean.push(o.widgets_values[vi++]);
+                    }
+                    o.widgets_values = clean;
+                }
+            };
+
             // Hook onConfigure so that after ComfyUI restores serialised
             // widget values (clone / paste / workflow-load) we re-insert
             // headers at the correct positions with the right visibility.
             const origOnConfigure = this.onConfigure;
-            this.onConfigure = function () {
+            this.onConfigure = function (data) {
                 origOnConfigure?.apply(this, arguments);
+
+                // Backwards-compat: old saves may include null entries
+                // for header widgets that were accidentally serialised.
+                // configure() already applied the (shifted) values, so
+                // we must detect and re-apply the corrected values.
+                const saved = data?.widgets_values;
+                const realWidgets = (this.widgets || []).filter(
+                    (w) => !w.__cse_header
+                );
+                if (
+                    saved &&
+                    saved.length > realWidgets.length
+                ) {
+                    const stripped = saved.filter((v) => v !== null);
+                    if (stripped.length === realWidgets.length) {
+                        let j = 0;
+                        for (const w of this.widgets) {
+                            if (w.__cse_header) continue;
+                            if (j < stripped.length) {
+                                w.value = stripped[j++];
+                            }
+                        }
+                    }
+                }
+
                 refresh();
             };
 
