@@ -208,8 +208,25 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
                 attach("load_from_cloud");
             }
 
-            // Initial state
-            refresh();
+            // Hook configure so that header widgets are stripped before
+            // ComfyUI restores serialised values (index-sensitive), then
+            // re-added afterwards with the correct positions.
+            const origConfigure = this.configure;
+            this.configure = function () {
+                if (this.widgets) {
+                    this.widgets = this.widgets.filter(
+                        (w) => !w.__cse_header
+                    );
+                }
+                this._cse_ui.widgets = {};
+                origConfigure?.apply(this, arguments);
+                refresh();
+            };
+
+            // Defer the first refresh so that a synchronous configure()
+            // call (clone / workflow-load) can restore widget values
+            // before headers are inserted into the array.
+            queueMicrotask(refresh);
 
             // Optional: subtle color cue
             this.color = this.color || "#2b2b2b";
