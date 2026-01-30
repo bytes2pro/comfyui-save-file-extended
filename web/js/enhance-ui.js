@@ -208,8 +208,21 @@ export async function beforeRegisterNodeDef(nodeType, nodeData, app) {
                 attach("load_from_cloud");
             }
 
-            // Initial state
-            refresh();
+            // Hook onConfigure so that after ComfyUI restores serialised
+            // widget values (clone / paste / workflow-load) we re-insert
+            // headers at the correct positions with the right visibility.
+            const origOnConfigure = this.onConfigure;
+            this.onConfigure = function () {
+                origOnConfigure?.apply(this, arguments);
+                refresh();
+            };
+
+            // For a brand-new node (no configure() call) we still need to
+            // set up the initial state.  Use queueMicrotask so that if
+            // configure() IS called synchronously right after onNodeCreated
+            // (the clone / paste path) it runs first, and our deferred
+            // refresh() sees the already-restored values.
+            queueMicrotask(() => refresh());
 
             // Optional: subtle color cue
             this.color = this.color || "#2b2b2b";
